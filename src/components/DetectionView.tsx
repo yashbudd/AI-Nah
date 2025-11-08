@@ -4,40 +4,51 @@ import { useEffect, useRef, useState } from 'react';
 import { Detector } from '@/ml/detector';
 import type { DetResult } from '@/types/hazard';
 
+const TARGET_FPS = 15;
+
 export default function DetectionView() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const detectorRef = useRef<Detector | null>(null);
-  const [isRunning, setIsRunning] = useState(true);
-  const [fps, setFps] = useState(0);
-  const [threshold, setThreshold] = useState(0.5);
-  const [error, setError] = useState<string | null>(null);
 
-  // Start and stop camera stream
+  // worker + stream refs
+  const detectorRef = useRef<Detector | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // controls (state shown in UI)
+  const [running, setRunning] = useState(true);
+  const [threshold, setThreshold] = useState(0.3);
+  const [fps, setFps] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+
+  // mirror state into refs so the main effect can read latest values without being re-run
+  const runningRef = useRef(running);
+  const thresholdRef = useRef(threshold);
+  useEffect(() => { runningRef.current = running; }, [running]);
+  useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
+
   async function startCamera() {
+    if (streamRef.current) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-    } catch (err: any) {
-      setError(err.message || 'Unable to access camera');
+      streamRef.current = stream;
+      const v = videoRef.current!;
+      v.srcObject = stream;
+      await v.play();
+    } catch (e: any) {
+      setErr(e?.message ?? 'Camera error');
     }
   }
 
   function stopCamera() {
-    const stream = videoRef.current?.srcObject as MediaStream | null;
-    stream?.getTracks().forEach((t) => t.stop());
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
   }
 
-  // Drawing detections
-  function drawDetections(canvas: HTMLCanvasElement, results: DetResult[]) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  function draw(canvas: HTMLCanvasElement, results: DetResult[]) {
+    const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 2;
     ctx.font = '14px system-ui';
@@ -47,120 +58,132 @@ export default function DetectionView() {
       const [x, y, w, h] = r.bbox;
       ctx.strokeStyle = 'lime';
       ctx.strokeRect(x, y, w, h);
+
       const label = `${r.label} ${(r.score * 100).toFixed(0)}%`;
-      const textWidth = ctx.measureText(label).width + 6;
-      const textHeight = 16;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-      ctx.fillRect(x, y - textHeight, textWidth, textHeight);
+      const tw = ctx.measureText(label).width + 6;
+      const th = 18;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(x, y - th, tw, th);
       ctx.fillStyle = 'white';
-      ctx.fillText(label, x + 3, y - textHeight + 2);
+      ctx.fillText(label, x + 3, y - th + 2);
     }
   }
 
-  // Main effect: load model + start loop
+  // MAIN EFFECT — runs once. Do not put running/threshold in deps.
   useEffect(() => {
-    let animationId = 0;
-    let fpsCounter = 0;
-    let lastFpsTime = performance.now();
+    let raf = 0;
+    let frames = 0;
+    let fpsTimer: any;
+    let lastTick = performance.now();
 
-    const runDetection = async () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!video || !canvas || !isRunning) {
-        animationId = requestAnimationFrame(runDetection);
-        return;
-      }
+    const loop = async () => {
+      raf = requestAnimationFrame(loop);
 
-      // Skip if video not ready
-      if (video.readyState < 2) {
-        animationId = requestAnimationFrame(runDetection);
-        return;
-      }
+      const v = videoRef.current!;
+      const c = canvasRef.current!;
+      if (!v || !c || v.readyState < 2) return;
 
-      // Match canvas to video size
-      if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
-      if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+      // Skip processing when paused
+      if (!runningRef.current) return;
+
+      const now = performance.now();
+      if (now - lastTick < 1000 / TARGET_FPS) return;
+      lastTick = now;
+
+      // match canvas to video’s pixel size
+      if (c.width !== v.videoWidth) c.width = v.videoWidth;
+      if (c.height !== v.videoHeight) c.height = v.videoHeight;
 
       try {
-        const bitmap = await createImageBitmap(video);
+        const bitmap = await createImageBitmap(v);
         const results = await detectorRef.current!.run(bitmap, {
-          scoreThreshold: threshold,
+          scoreThreshold: thresholdRef.current,
           maxDetections: 10,
         });
-        drawDetections(canvas, results);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message);
-      }
 
-      fpsCounter++;
-      const now = performance.now();
-      if (now - lastFpsTime >= 1000) {
-        setFps(fpsCounter);
-        fpsCounter = 0;
-        lastFpsTime = now;
-      }
+        // Debug sampling to avoid spam
+        if (results.length && Math.random() < 0.1) {
+          console.log('detections', results.map(r => ({ label: r.label, s: +r.score.toFixed(2) })));
+        }
 
-      animationId = requestAnimationFrame(runDetection);
+        draw(c, results);
+        frames++;
+      } catch (e: any) {
+        console.error(e);
+        setErr(e?.message ?? 'Detection error');
+      }
     };
 
     (async () => {
       await startCamera();
-
-      const detector = new Detector();
-      detectorRef.current = detector;
-      await detector.init();
-
-      animationId = requestAnimationFrame(runDetection);
+      const det = new Detector();
+      detectorRef.current = det;
+      await det.init();
+      fpsTimer = setInterval(() => { setFps(frames); frames = 0; }, 1000);
+      raf = requestAnimationFrame(loop);
     })();
 
     return () => {
-      cancelAnimationFrame(animationId);
-      stopCamera();
+      if (raf) cancelAnimationFrame(raf);
+      if (fpsTimer) clearInterval(fpsTimer);
       detectorRef.current?.destroy();
+      stopCamera();
     };
-  }, [isRunning, threshold]);
+  }, []); // <- stable, never changes size
+
+  // overlay styles (no Tailwind required)
+  const wrapperStyle: React.CSSProperties = {
+    position: 'relative',
+    display: 'inline-block',
+    width: '100%',
+    maxWidth: 960,
+  };
+  const videoStyle: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    height: 'auto',
+    borderRadius: 8,
+  };
+  const canvasStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none',
+    zIndex: 1,
+    borderRadius: 8,
+  };
 
   return (
-    <div className="w-full max-w-3xl mx-auto p-4">
-      <div className="flex items-center gap-3 mb-3">
+    <div style={{ width: '100%', padding: 16, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <button
-          className="px-3 py-1 rounded bg-black text-white"
-          onClick={() => setIsRunning((r) => !r)}
+          style={{ padding: '6px 12px', borderRadius: 6, background: '#000', color: '#fff' }}
+          onClick={() => setRunning(r => !r)}
+          aria-pressed={running}
         >
-          {isRunning ? 'Pause' : 'Resume'}
+          {running ? 'Pause' : 'Resume'}
         </button>
 
-        <label className="text-sm ml-2">
+        <label style={{ fontSize: 14, marginLeft: 8 }}>
           Confidence ≥ {Math.round(threshold * 100)}%
           <input
             type="range"
-            className="ml-2 align-middle"
-            min={0.2}
-            max={0.9}
-            step={0.05}
+            min={0.2} max={0.9} step={0.05}
             value={threshold}
-            onChange={(e) => setThreshold(parseFloat(e.target.value))}
+            onChange={e => setThreshold(parseFloat(e.target.value))}
+            style={{ marginLeft: 8, verticalAlign: 'middle' }}
           />
         </label>
 
-        <div className="text-sm ml-auto opacity-70">
-          {error ? <span className="text-red-600">{error}</span> : <>FPS: {fps}</>}
+        <div style={{ marginLeft: 'auto', opacity: 0.7, fontSize: 14 }}>
+          {err ? <span style={{ color: '#dc2626' }}>{err}</span> : <>FPS: {fps}</>}
         </div>
       </div>
 
-      <div className="relative">
-        <video
-          ref={videoRef}
-          className="w-full rounded"
-          autoPlay
-          playsInline
-          muted
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-        />
+      <div style={wrapperStyle}>
+        <video ref={videoRef} style={videoStyle} playsInline muted autoPlay />
+        <canvas ref={canvasRef} style={canvasStyle} />
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-'use client';
 import DetectionView from '@/components/DetectionView';
 
 export default function DetectPage() {

@@ -23,14 +23,16 @@ self.onmessage = async (event) => {
   if (msg.type === 'run') {
     if (!model) return;
     const { frame, scoreThreshold = 0.5, maxDetections = 10 } = msg;
+
     const preds = await model.detect(frame, maxDetections);
     const results = preds
       .filter(p => p.score >= scoreThreshold)
       .map(p => ({
         label: p.class,
         score: p.score,
-        bbox: p.bbox as [number, number, number, number],
+        bbox: p.bbox as [number, number, number, number]
       }));
+
     // @ts-ignore
     self.postMessage({ type: 'results', results });
     frame.close();

@@ -51,12 +51,9 @@ export async function POST(req: NextRequest) {
       const near = h.position
         ? await col.findOne({
             type: h.type,
-            'position.lat': { $exists: true },
-            'position.lng': { $exists: true },
+            'position.lat': { $exists: true, $gt: h.position.lat - 0.00025, $lt: h.position.lat + 0.00025 },
+            'position.lng': { $exists: true, $gt: h.position.lng - 0.00025, $lt: h.position.lng + 0.00025 },
             ts: { $gte: new Date(Date.now() - 2 * 60 * 1000).toISOString() },
-            // crude proximity box ~0.00025 deg ≈ 27m
-            'position.lat': { $gt: h.position.lat - 0.00025, $lt: h.position.lat + 0.00025 },
-            'position.lng': { $gt: h.position.lng - 0.00025, $lt: h.position.lng + 0.00025 },
           })
         : null;
 

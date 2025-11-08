@@ -1,91 +1,66 @@
-# TrailMix
+# TrailMix AI - Trail Safety App 🥾⛰️
 
-**AI-Powered Trail Mapping and Hazard Detection**
+## 🎉 **Team Ready Structure!**
 
-## Overview
+This is your **complete hackathon-ready TrailMix app** in Next.js format for team collaboration.
 
-TrailMix is an AI-driven mobile and web app that maps outdoor trails in real time and detects potential hazards using live computer vision. The app identifies obstacles such as debris, flooding, or blockages and automatically updates nearby hikers with safe, weighted route recommendations. TrailMix was built for the **AI ATL 2025 Hackathon** and submitted to the **Google**, **Microsoft for Startups**, **MongoDB Atlas**, **Google API**, and **Matt Steele** tracks.
+## 🚀 **Quick Start**
 
-## Problem
-
-Hikers and outdoor enthusiasts often rely on outdated or incomplete information about trail conditions. After storms or seasonal changes, trails can quickly become unsafe due to fallen trees, erosion, or standing water. Most mapping tools do not provide real-time hazard detection, forcing users to rely on reports from other hikers or park rangers, which can be delayed or inaccurate.
-
-The result is a lack of safety awareness, increased risk of injury, and inefficiency in emergency response or maintenance efforts.
-
-## Opportunity
-
-TrailMix addresses this gap by combining live hazard detection, spatial mapping, and AI-assisted route planning into one system. Modern computer vision models, combined with open mapping APIs and cloud databases, make it possible to automatically recognize hazards, share them with nearby users, and suggest alternative routes instantly.
-
-This creates a safer, smarter, and more connected hiking experience while providing valuable environmental data for park services and outdoor organizations.
-
-## Technology
-
-TrailMix integrates several modern technologies across AI, mapping, and data infrastructure:
-
-### Core Components
-
-* **TensorFlow + Google Gemini API** – powers the live object detection and classification for hazards such as debris, blockages, or flooding.
-* **Mapbox** – provides the interactive trail map, GPS tracking, and real-time hazard visualization.
-* **MongoDB Atlas** – stores user profiles, hazard reports, and spatial data.
-* **TypeScript + Next.js** – used for the front-end interface and routing logic.
-* **Microsoft for Startups / Google Cloud** – supports cloud infrastructure and AI model hosting.
-
-### Weighted Route Logic
-
-Each trail segment is scored dynamically based on distance, elevation, and hazard severity.
-The route suggestion engine prioritizes the lowest weighted path to minimize risk and travel time.
-
-## Solution
-
-TrailMix delivers a full hiking experience through five main screens:
-
-1. **Map View** – Interactive Mapbox map showing trails, hazard markers, and AI-recommended safe routes.
-2. **Live Detection** – Real-time camera mode that identifies hazards using TensorFlow and Gemini, displaying bounding boxes and confidence scores.
-3. **Chatbot** – An AI assistant that answers questions like “What’s the safest path back?” or “Where were hazards last detected?”
-4. **Profile** – Stores hiking history, preferences, and user-submitted hazard validations.
-5. **Hazard List** – Displays all known hazards in the area, sorted by type, timestamp, and confidence level.
-
-## Architecture
-
-```
-Frontend:  Next.js + TypeScript
-AI Model:  TensorFlow + Google Gemini API
-Mapping:   Mapbox API
-Database:  MongoDB Atlas
-Hosting:   Vercel / Firebase
+```bash
+npm install
+npm run dev
 ```
 
-1. User opens app → GPS and camera activate.
-2. Live video stream → TensorFlow → Hazard classification.
-3. Results sent to MongoDB with coordinates and confidence levels.
-4. Mapbox updates visual layer and recalculates safest route.
-5. Gemini chatbot responds to user questions using the latest map data.
+Open http://localhost:3001
 
-## Future Work
+## ✅ **What's Working**
 
-* Integrate predictive hazard forecasting using weather and satellite inputs.
-* Enable offline mode for remote trails with on-device model inference.
-* Partner with local parks and trail organizations for verified data sharing.
-* Expand to other outdoor use cases like biking and kayaking routes.
+### **Complete Features:**
+- 🗺️ **Interactive Map** - Mapbox with geolocation & hazard pins
+- 📸 **Camera Detection** - Manual hazard reporting with visual feedback  
+- 💬 **AI Chat Assistant** - Gemini-powered trail safety advisor
+- 🎯 **Demo Mode** - Atlanta trail hazards for presentations
+- 📱 **Mobile-First** - Touch-optimized UI design
+- 🔄 **Integrated Flow** - Camera → Map → AI Chat
 
-## Team
+### **Pages Ready:**
+- **`/`** - Welcome page with feature overview
+- **`/map`** - Interactive map with demo mode
+- **`/detect`** - Camera detection interface
+- **`/chat`** - Live AI chat with Gemini integration
 
-| Member   | Role               | Responsibilities                            |
-| -------- | ------------------ | ------------------------------------------- |
-| Yash     | AI Engineer        | Model training, detection pipeline          |
-| Victoria | Frontend Developer | Mapbox integration, UI/UX                   |
-| Coleman  | Backend Developer  | Database setup, API design, route weighting |
+## 🛠️ **For Your Team**
 
-## Acknowledgments
+### **Ready to Build On:**
+- `app/api/chat/` - Live AI chat API with Gemini
+- `lib/gemini.ts` - AI chat wrapper & utilities
+- `components/ChatInterface.tsx` - Full chat UI
+- `ml/` - AI/ML detection models
+- `lib/db.ts` - Database integration
 
-TrailMix was built for **AI ATL 2025** and submitted to:
+### **Environment:**
+Copy `.env.example` to `.env.local` and add your API keys:
+- Mapbox token for maps
+- Gemini API key for AI chat
 
-* Google AI Track
-* Microsoft for Startups
-* MongoDB Atlas Challenge
-* Google API Challenge
-* Matt Steele Track
+### **Structure:**
+```
+AI-Nah/
+├── app/           # Next.js pages & layouts
+├── components/    # Working UI components  
+├── lib/          # Utilities & integrations
+├── ml/           # Ready for AI models
+├── types/        # TypeScript definitions
+└── utils/        # Environment helpers
+```
 
-Special thanks to the mentors and organizers who supported the event.
+## 🎯 **Hackathon Ready**
 
-**TrailMix** helps people explore confidently—by turning live trail data into intelligent safety guidance.
+**Everything migrated and working!** Your teammate can now add:
+- Enhanced AI detection models
+- Real-time hazard sharing  
+- Database persistence
+- Advanced trail analytics
+- Group chat features
+
+**Live AI chat is now integrated! 🚀⛰️**

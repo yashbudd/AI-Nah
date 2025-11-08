@@ -1,23 +1,29 @@
 {
   "compilerOptions": {
-    "target": "ES6", // Specify ECMAScript target version
-    "module": "commonjs", // Specify module code generation
-    "strict": true, // Enable strict type-checking options
-    "esModuleInterop": true, // Enable compatibility with ES modules
-    "skipLibCheck": true, // Skip type checking of declaration files
-    "resolveJsonModule": true, // Allow importing .json files
-    "outDir": "./dist", // Specify output directory for compiled files
-    "typeRoots": ["./node_modules/@types"], // Specify type definitions directory
-    "baseUrl": "./", // Base directory for module resolution
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "es6"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"] // Alias for the src directory
-    },
-    "experimentalDecorators": true // Enable experimental decorator support
+      "@/*": ["./*"]
+    }
   },
-  "include": [
-    "src/**/*" // Include all TypeScript files in the src directory
-  ],
-  "exclude": [
-    "node_modules" // Exclude dependencies
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

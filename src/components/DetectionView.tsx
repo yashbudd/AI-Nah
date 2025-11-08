@@ -272,6 +272,7 @@ export default function DetectionView() {
     width: '100%',
     height: 'auto',
     borderRadius: 8,
+    transform: 'scaleX(-1)', // Mirror the camera feed horizontally
   };
   const canvasStyle: React.CSSProperties = {
     position: 'absolute',
@@ -281,6 +282,7 @@ export default function DetectionView() {
     pointerEvents: 'none',
     zIndex: 1,
     borderRadius: 8,
+    transform: 'scaleX(-1)', // Mirror the overlay to match the video
   };
 
   return (

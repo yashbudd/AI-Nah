@@ -345,20 +345,32 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         onClick={centerOnUser}
         style={{
           position: "absolute",
-          top: 10,
-          left: 10,
+          top: 160, // Moved down to be below navigation controls
+          right: 10,
           zIndex: 1000,
-          padding: "8px 12px",
-          fontSize: 14,
-          borderRadius: 6,
+          width: 40,
+          height: 40,
+          borderRadius: 4,
           border: "none",
-          backgroundColor: "#10B981",
-          color: "white",
+          backgroundColor: "#fff",
+          color: "#404040",
           cursor: "pointer",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          boxShadow: "0 0 0 2px rgba(0,0,0,.1)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 18,
+          transition: "all 0.2s ease",
         }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "#f8f9fa";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "#fff";
+        }}
+        title="Get my location"
       >
-        📍 Center on Me
+        📍
       </button>
 
       {/* Clear Route */}
@@ -366,7 +378,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         onClick={clearRoute}
         style={{
           position: "absolute",
-          top: 10,
+          top: 220, // Moved down below the center on me button
           right: 10,
           zIndex: 1000,
           padding: "8px 12px",

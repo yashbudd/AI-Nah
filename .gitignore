@@ -1,0 +1,32 @@
+# Dependencies & builds
+node_modules
+.next
+out
+dist
+coverage
+.turbo
+
+# Env files (keep template)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*
+!.env.example
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Tooling
+.vercel

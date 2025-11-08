@@ -18,7 +18,7 @@ export default function DetectPage() {
 
   return (
     <div>
-      {/* <DetectionView onHazardReport={handleHazardReport} getPosition={getPosition} /> */}
+      <DetectionView />
       <div className="tip" style={{ textAlign: 'center', marginTop: 16 }}>
         Camera Detection - Report trail hazards you see
       </div>

@@ -1,4 +1,4 @@
-import type { DetResult } from '@/src/types/hazard';
+import type { DetResult } from '@/types/hazard';
 
 export type DetectorOpts = { scoreThreshold?: number; maxDetections?: number };
 

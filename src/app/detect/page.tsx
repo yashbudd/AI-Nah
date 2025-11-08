@@ -9,6 +9,7 @@ export default function DetectPage() {
     });
   }
 
+  //mongodb integration to be added later
   function handleHazardReport(hazard: {type:"debris"|"water"|"blocked"; lat:number; lng:number}) {
     // In a real app, this would sync with a global state or API
     console.log('Hazard reported:', hazard);
@@ -17,7 +18,7 @@ export default function DetectPage() {
 
   return (
     <div>
-      <DetectionView onHazardReport={handleHazardReport} getPosition={getPosition} />
+      {/* <DetectionView onHazardReport={handleHazardReport} getPosition={getPosition} /> */}
       <div className="tip" style={{ textAlign: 'center', marginTop: 16 }}>
         Camera Detection - Report trail hazards you see
       </div>

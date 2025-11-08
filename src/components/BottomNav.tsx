@@ -7,9 +7,8 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/', icon: '🏠', label: 'Home' },
-    { href: '/map', icon: '🗺️', label: 'Map' },
     { href: '/detect', icon: '📸', label: 'Live' },
+    { href: '/map', icon: '🗺️', label: 'Map' },
     { href: '/chat', icon: '💬', label: 'Chat' },
   ];
 

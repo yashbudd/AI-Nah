@@ -1,3 +1,5 @@
+'use client';
+
 import type { DetResult } from '@/types/hazard';
 
 export type DetectorOpts = { scoreThreshold?: number; maxDetections?: number };

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Detector } from '@/ml/detector';
 import type { DetResult } from '@/types/hazard';
 
-const TARGET_FPS = 15;
+const TARGET_FPS = 10;
 
 export default function DetectionView() {
   const videoRef = useRef<HTMLVideoElement>(null);

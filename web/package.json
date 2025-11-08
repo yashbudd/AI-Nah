@@ -13,10 +13,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "mapbox-gl": "^2.15.0",
-    "@types/mapbox-gl": "^2.7.13",
-    "socket.io-client": "^4.7.2",
-    "@tensorflow/tfjs": "^4.10.0",
-    "@tensorflow-models/coco-ssd": "^2.2.2"
+    "@types/mapbox-gl": "^2.7.13"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

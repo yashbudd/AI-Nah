@@ -1,95 +1,128 @@
-import React, { useEffect, useRef, useState } from "react";
-import mapboxgl, { LngLatBoundsLike } from "mapbox-gl";
-import { getHazardsBBox, route } from "../api";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import mapboxgl from "mapbox-gl";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
-export default function MapView() {
+type Hazard = {
+  id: string;
+  type: "debris" | "water" | "blocked";
+  lat: number;
+  lng: number;
+  timestamp: number;
+};
+
+export interface MapViewRef {
+  addHazard: (hazard: {type:"debris"|"water"|"blocked"; lat:number; lng:number}) => void;
+}
+
+const MapView = forwardRef<MapViewRef>((_, ref) => {
   const mapRef = useRef<mapboxgl.Map|null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{lng:number;lat:number}|null>(null);
-  const [hazardCounts, setHazardCounts] = useState({ debris: 0, water: 0, blocked: 0 });
+  const [hazards, setHazards] = useState<Hazard[]>([]);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+
     const m = new mapboxgl.Map({
-      container: containerRef.current!,
+      container: containerRef.current,
       style: "mapbox://styles/mapbox/outdoors-v12",
       center: [-84.389, 33.775], 
-      zoom: 15 // Higher zoom for mobile
+      zoom: 15
     });
     mapRef.current = m;
 
-    // Add zoom and rotation controls for mobile
+    // Add controls for mobile
     m.addControl(new mapboxgl.NavigationControl({ 
       showCompass: true,
-      showZoom: true,
-      visualizePitch: true 
+      showZoom: true 
     }), 'top-right');
 
-    m.on("load", ()=>{
-      m.addSource("hazards", { type:"geojson", data: { type:"FeatureCollection", features:[] } as any });
+    m.on("load", () => {
+      // Add hazards source
+      m.addSource("hazards", { 
+        type: "geojson", 
+        data: { type: "FeatureCollection", features: [] } 
+      });
+      
+      // Add hazard markers
       m.addLayer({
-        id:"hazards", type:"circle", source:"hazards",
+        id: "hazards", 
+        type: "circle", 
+        source: "hazards",
         paint: {
-          "circle-radius": 8, // Larger for mobile
+          "circle-radius": 10,
           "circle-color": [
-            "match", ["get","type"],
-            "debris","#D97706",
-            "water","#3B82F6",
-            "blocked","#EF4444",
+            "match", 
+            ["get", "type"],
+            "debris", "#D97706",
+            "water", "#3B82F6",
+            "blocked", "#EF4444",
             "#10B981"
           ],
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 3,
           "circle-stroke-color": "#ffffff"
         }
       });
       
-      // Add labels for hazards
+      // Add emoji labels
       m.addLayer({
         id: "hazard-labels",
         type: "symbol",
         source: "hazards",
         layout: {
           "text-field": [
-            "match", ["get","type"],
-            "debris","🪨",
-            "water","💧", 
-            "blocked","🚫",
+            "match", 
+            ["get", "type"],
+            "debris", "🪨",
+            "water", "💧", 
+            "blocked", "🚫",
             "⚠️"
           ],
-          "text-size": 16,
-          "text-offset": [0, 0],
+          "text-size": 18,
           "text-anchor": "center"
         }
       });
     });
 
-    // Enhanced geolocation for mobile
-    const watchId = navigator.geolocation.watchPosition((p)=>{
+    // Get user location
+    const watchId = navigator.geolocation.watchPosition((p) => {
       const coords = { lng: p.coords.longitude, lat: p.coords.latitude };
       setPos(coords);
       
-      // Center map on user location initially
+      // Center map on first location
       if (!m.getSource("me")) {
         m.flyTo({ center: [coords.lng, coords.lat], zoom: 16 });
       }
       
+      // Update user location marker
       if (!m.getSource("me")) {
-        m.addSource("me", { type:"geojson", data: { type:"Feature", geometry:{type:"Point", coordinates:[coords.lng, coords.lat]} } as any });
+        m.addSource("me", { 
+          type: "geojson", 
+          data: { 
+            type: "Feature", 
+            geometry: { type: "Point", coordinates: [coords.lng, coords.lat] },
+            properties: {}
+          } 
+        });
         m.addLayer({ 
-          id:"me", 
-          type:"circle", 
-          source:"me", 
-          paint:{ 
-            "circle-color":"#10B981", 
-            "circle-radius":10,
-            "circle-stroke-width": 3,
+          id: "me", 
+          type: "circle", 
+          source: "me", 
+          paint: { 
+            "circle-color": "#10B981", 
+            "circle-radius": 12,
+            "circle-stroke-width": 4,
             "circle-stroke-color": "#ffffff"
           }
         });
       } else {
-        const s = m.getSource("me") as mapboxgl.GeoJSONSource;
-        s.setData({ type:"Feature", geometry:{type:"Point", coordinates:[coords.lng, coords.lat]} } as any);
+        const source = m.getSource("me") as mapboxgl.GeoJSONSource;
+        source.setData({ 
+          type: "Feature", 
+          geometry: { type: "Point", coordinates: [coords.lng, coords.lat] },
+          properties: {}
+        });
       }
     }, (error) => {
       console.error('Geolocation error:', error);
@@ -99,72 +132,35 @@ export default function MapView() {
       maximumAge: 60000 
     });
 
-    const id = setInterval(()=> refreshHazards(), 5000); // More frequent updates for mobile
-    return ()=> { 
-      clearInterval(id); 
+    return () => { 
       navigator.geolocation.clearWatch(watchId);
       m.remove(); 
     }
   }, []);
 
-  async function refreshHazards() {
-    const m = mapRef.current!;
-    const b = m.getBounds();
-    const bbox = { minLng: b.getWest(), minLat: b.getSouth(), maxLng: b.getEast(), maxLat: b.getNorth() };
-    try {
-      const data = await getHazardsBBox(bbox);
-      const s = m.getSource("hazards") as mapboxgl.GeoJSONSource;
-      s.setData(data);
-      
-      // Update hazard counts
-      const counts = { debris: 0, water: 0, blocked: 0 };
-      data.features?.forEach((feature: any) => {
-        const type = feature.properties?.type;
-        if (type && counts[type as keyof typeof counts] !== undefined) {
-          counts[type as keyof typeof counts]++;
-        }
-      });
-      setHazardCounts(counts);
-    } catch (error) {
-      console.error('Failed to refresh hazards:', error);
-    }
-  }
+  // Update hazards on map when hazards state changes
+  useEffect(() => {
+    if (!mapRef.current || !mapRef.current.getSource("hazards")) return;
 
-  async function rerouteToHere() {
-    if (!pos) {
-      alert("📍 Getting your location...");
-      return;
-    }
-    
-    const dest = mapRef.current!.getCenter();
-    try {
-      const r = await route(`${pos.lng},${pos.lat}`, `${dest.lng},${dest.lat}`);
-      const idx = r.selected ?? 0;
-      const geom = r.routes[idx].geometry;
-      
-      if (!mapRef.current!.getSource("route")) {
-        mapRef.current!.addSource("route", { type:"geojson", data: { type:"Feature", geometry: geom } as any });
-        mapRef.current!.addLayer({ 
-          id:"route", 
-          type:"line", 
-          source:"route", 
-          paint: { 
-            "line-width": 4, 
-            "line-color":"#22C55E",
-            "line-opacity": 0.8
-          }
-        });
-      } else {
-        (mapRef.current!.getSource("route") as mapboxgl.GeoJSONSource).setData({ type:"Feature", geometry: geom } as any);
-      }
-      
-      // Show route note with better formatting
-      const message = `🛤️ ${r.note || "Route ready"}`;
-      alert(message);
-    } catch (error) {
-      alert("❌ Routing failed. Check connection.");
-    }
-  }
+    const geojsonData = {
+      type: "FeatureCollection",
+      features: hazards.map(hazard => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [hazard.lng, hazard.lat]
+        },
+        properties: {
+          id: hazard.id,
+          type: hazard.type,
+          timestamp: hazard.timestamp
+        }
+      }))
+    };
+
+    const source = mapRef.current.getSource("hazards") as mapboxgl.GeoJSONSource;
+    source.setData(geojsonData as any);
+  }, [hazards]);
 
   function centerOnUser() {
     if (!pos) {
@@ -178,38 +174,74 @@ export default function MapView() {
     });
   }
 
+  function clearHazards() {
+    setHazards([]);
+  }
+
+  function addHazard(hazard: {type:"debris"|"water"|"blocked"; lat:number; lng:number}) {
+    const newHazard: Hazard = {
+      id: Date.now().toString(),
+      type: hazard.type,
+      lat: hazard.lat,
+      lng: hazard.lng,
+      timestamp: Date.now()
+    };
+
+    setHazards(prev => [...prev, newHazard]);
+    
+    // Fly to the new hazard
+    mapRef.current?.flyTo({
+      center: [hazard.lng, hazard.lat],
+      zoom: 17,
+      duration: 1000
+    });
+  }
+
+  useImperativeHandle(ref, () => ({
+    addHazard
+  }));
+
   return (
     <div className="map-container">
       <div ref={containerRef} className="map-view" />
       
       <div className="hazard-count">
         <div className="hazard-count-item">
-          <span className="hazard-count-number" style={{color: '#D97706'}}>{hazardCounts.debris}</span>
+          <span className="hazard-count-number" style={{color: '#D97706'}}>
+            {hazards.filter(h => h.type === 'debris').length}
+          </span>
           <span className="hazard-count-label">Debris</span>
         </div>
         <div className="hazard-count-item">
-          <span className="hazard-count-number" style={{color: '#3B82F6'}}>{hazardCounts.water}</span>
+          <span className="hazard-count-number" style={{color: '#3B82F6'}}>
+            {hazards.filter(h => h.type === 'water').length}
+          </span>
           <span className="hazard-count-label">Water</span>
         </div>
         <div className="hazard-count-item">
-          <span className="hazard-count-number" style={{color: '#EF4444'}}>{hazardCounts.blocked}</span>
+          <span className="hazard-count-number" style={{color: '#EF4444'}}>
+            {hazards.filter(h => h.type === 'blocked').length}
+          </span>
           <span className="hazard-count-label">Blocked</span>
         </div>
       </div>
       
       <div className="map-controls">
-        <button className="btn-primary" onClick={rerouteToHere} style={{ width: '100%' }}>
-          🗺️ Route to Map Center
+        <button className="btn-primary" onClick={centerOnUser} style={{ width: '100%' }}>
+          � Center on Me
         </button>
         
-        <button className="btn-secondary" onClick={centerOnUser} style={{ width: '100%' }}>
-          📍 Center on Me
+        <button className="btn-secondary" onClick={clearHazards} style={{ width: '100%' }}>
+          🧹 Clear Hazards
         </button>
         
         <div className="map-info">
-          🎯 Drag map to choose destination, then tap route button
+          🎯 {hazards.length} hazard{hazards.length !== 1 ? 's' : ''} reported
         </div>
       </div>
     </div>
   );
-}
+});
+
+MapView.displayName = "MapView";
+export default MapView;

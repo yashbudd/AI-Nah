@@ -3,19 +3,13 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { useHazards } from "@/hooks/useHazards";
+import { HazardResponse } from "@/types/hazard-db";
 
 // Next.js environment variable
 mapboxgl.accessToken =
   process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
   "pk.eyJ1IjoidHJhaWxtaXgiLCJhIjoiY2x6MjN4eWRmMHExZzJrcGxqbm5ybGt4OCJ9.demo_token_replace_with_real_token";
-
-type Hazard = {
-  id: string;
-  type: "debris" | "water" | "blocked";
-  lat: number;
-  lng: number;
-  timestamp: number;
-};
 
 export interface MapViewRef {
   addHazard: (hazard: { type: "debris" | "water" | "blocked"; lat: number; lng: number }) => void;
@@ -33,8 +27,15 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [pos, setPos] = useState<{ lng: number; lat: number } | null>(null);
-  const [hazards, setHazards] = useState<Hazard[]>([]);
+  const [pos, setPos] = useState<{ lng: number; lat: number }>({ lng: -83.802681, lat: 34.648460 }); // Hardcoded to forest
+  
+  // Use MongoDB hazards hook
+  const { hazards, loading, error, createHazard } = useHazards({
+    lat: 34.648460,
+    lng: -83.802681,
+    radius: 10,
+    autoFetch: true
+  });
 
   // two-click routing state
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -43,16 +44,29 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
   const endLLRef = useRef<{ lng: number; lat: number } | null>(null);
   const [routing, setRouting] = useState<{ busy: boolean; error?: string } | null>(null);
 
-  // ---- helpers ----
+  // Manual hazard creation state
+  const [showHazardForm, setShowHazardForm] = useState(false);
+  const [newHazard, setNewHazard] = useState({
+    type: 'debris' as 'debris' | 'water' | 'blocked',
+    description: ''
+  });
+
+    // ---- helpers ----
   function hazardsToGeoJSON() {
     return {
-      type: "FeatureCollection",
+      type: "FeatureCollection" as const,
       features: hazards.map((h) => ({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [h.lng, h.lat] },
-        properties: { id: h.id, type: h.type, timestamp: h.timestamp },
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [h.longitude, h.latitude] },
+        properties: { 
+          id: h.id, 
+          type: h.type, 
+          confidence: h.confidence,
+          timestamp: h.timestamp,
+          source: h.source
+        },
       })),
-    } as GeoJSON.FeatureCollection;
+    };
   }
 
   async function fetchRoute(
@@ -128,8 +142,8 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     const m = new mapboxgl.Map({
       container: containerRef.current,
       style: "mapbox://styles/mapbox/outdoors-v12",
-      center: [-84.389, 33.775],
-      zoom: 15,
+      center: [-83.802681, 34.648460], // Chattahoochee Forest
+      zoom: 14,
       attributionControl: false,
     });
     mapRef.current = m;
@@ -187,49 +201,76 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       // route source/layer
       ensureRouteSource(m);
 
-      // geolocation watch
-      const watchId = navigator.geolocation.watchPosition(
-        (p) => {
-          const coords = { lng: p.coords.longitude, lat: p.coords.latitude };
-          setPos(coords);
+      // Hardcode user location to Chattahoochee National Forest trail
+      const forestCoords = { lng: -83.802681, lat: 34.648460 }; // Chattahoochee Forest
+      setPos(forestCoords);
 
-          if (!m.getSource(ME_SOURCE_ID)) {
-            m.flyTo({ center: [coords.lng, coords.lat], zoom: 16 });
-            m.addSource(ME_SOURCE_ID, {
-              type: "geojson",
-              data: {
-                type: "Feature",
-                geometry: { type: "Point", coordinates: [coords.lng, coords.lat] },
-                properties: {},
-              },
-            });
-            m.addLayer({
-              id: ME_LAYER_ID,
-              type: "circle",
-              source: ME_SOURCE_ID,
-              paint: {
-                "circle-color": "#10B981",
-                "circle-radius": 12,
-                "circle-stroke-width": 4,
-                "circle-stroke-color": "#ffffff",
-              },
-            });
-          } else {
-            const source = m.getSource(ME_SOURCE_ID) as mapboxgl.GeoJSONSource;
-            source.setData({
-              type: "Feature",
-              geometry: { type: "Point", coordinates: [coords.lng, coords.lat] },
-              properties: {},
-            } as any);
-          }
+      // Add user location marker immediately at forest location
+      m.addSource(ME_SOURCE_ID, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [forestCoords.lng, forestCoords.lat] },
+          properties: {},
         },
-        () => {},
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-      );
-      (m as any).geoWatchId = watchId;
+      });
+      m.addLayer({
+        id: ME_LAYER_ID,
+        type: "circle",
+        source: ME_SOURCE_ID,
+        paint: {
+          "circle-color": "#10B981",
+          "circle-radius": 12,
+          "circle-stroke-width": 4,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
 
-      // click to set start/end and route
+      // click to set start/end and route OR show hazard details
       m.on("click", async (e) => {
+        // Check if we clicked on a hazard first
+        const features = m.queryRenderedFeatures(e.point, {
+          layers: [HAZARDS_LAYER_ID]
+        });
+        
+        if (features.length > 0) {
+          const hazard = features[0];
+          const { type, confidence, timestamp, source, id } = hazard.properties || {};
+          
+          // Find full hazard data
+          const fullHazard = hazards.find(h => h.id === id);
+          
+          // Create popup for hazard
+          new mapboxgl.Popup({ closeOnClick: true })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="padding: 8px; min-width: 200px;">
+                <div style="font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                  ${type === 'debris' ? '🪨' : type === 'water' ? '💧' : '🚫'} 
+                  ${type.charAt(0).toUpperCase() + type.slice(1)} Hazard
+                </div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                  <strong>Confidence:</strong> ${Math.round(confidence * 100)}%
+                </div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                  <strong>Source:</strong> ${source}
+                </div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                  <strong>Reported:</strong> ${new Date(timestamp).toLocaleDateString()}
+                </div>
+                ${fullHazard?.description ? `
+                  <div style="font-size: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+                    ${fullHazard.description}
+                  </div>
+                ` : ''}
+              </div>
+            `)
+            .addTo(m);
+          
+          return; // Don't process routing if we clicked on a hazard
+        }
+
+        // Original routing logic
         const ll = { lng: e.lngLat.lng, lat: e.lngLat.lat };
 
         // first click => start, second => end
@@ -273,10 +314,18 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         startLLRef.current = ll;
         startMarkerRef.current = addMarker(ll, "#111827");
       });
+
+      // Add hover effects for hazards
+      m.on('mouseenter', HAZARDS_LAYER_ID, () => {
+        m.getCanvas().style.cursor = 'pointer';
+      });
+
+      m.on('mouseleave', HAZARDS_LAYER_ID, () => {
+        m.getCanvas().style.cursor = '';
+      });
     });
 
     return () => {
-      if ((m as any).geoWatchId) navigator.geolocation.clearWatch((m as any).geoWatchId);
       m.remove();
     };
   }, []);
@@ -299,39 +348,73 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
 
   // actions
   function centerOnUser() {
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        const coords = { lng: p.coords.longitude, lat: p.coords.latitude };
-        setPos(coords);
-        mapRef.current?.flyTo({ center: [coords.lng, coords.lat], zoom: 17, duration: 1000, essential: true });
-      },
-      () => {
-        if (pos) {
-          mapRef.current?.flyTo({ center: [pos.lng, pos.lat], zoom: 17, duration: 800, essential: true });
-        } else {
-          mapRef.current?.flyTo({ center: [-84.389, 33.775], zoom: 15, duration: 800, essential: true });
-          alert("📍 Location not available - please enable location services");
-        }
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
-    );
+    // Always center on hardcoded forest location
+    const forestCoords = { lng: -83.802681, lat: 34.648460 }; // Chattahoochee Forest
+    mapRef.current?.flyTo({ 
+      center: [forestCoords.lng, forestCoords.lat], 
+      zoom: 17, 
+      duration: 1000, 
+      essential: true 
+    });
   }
 
   function clearHazards() {
-    setHazards([]);
+    // Clear hazards by reloading from database
+    // For now, just alert - you could implement a delete API
+    alert("Clear hazards functionality - would delete from database");
   }
 
-  function addHazard(hazard: { type: "debris" | "water" | "blocked"; lat: number; lng: number }) {
-    const newHazard: Hazard = {
-      id: Date.now().toString(),
+  async function addHazard(hazard: { type: "debris" | "water" | "blocked"; lat: number; lng: number }) {
+    // Use MongoDB to create hazard
+    const newHazard = await createHazard({
+      longitude: hazard.lng,
+      latitude: hazard.lat,
       type: hazard.type,
-      lat: hazard.lat,
-      lng: hazard.lng,
-      timestamp: Date.now(),
-    };
-    setHazards((prev) => [...prev, newHazard]);
+      confidence: 0.8, // Default confidence for manual entries
+      source: 'manual',
+      description: `Manual ${hazard.type} report`
+    });
 
-    mapRef.current?.flyTo({ center: [hazard.lng, hazard.lat], zoom: 17, duration: 1000 });
+    if (newHazard) {
+      // Fly to the new hazard
+      mapRef.current?.flyTo({
+        center: [newHazard.longitude, newHazard.latitude],
+        zoom: 17,
+        duration: 1000
+      });
+    }
+  }
+
+  async function createManualHazard() {
+    if (!newHazard.description.trim()) {
+      alert('Please enter a description for the hazard');
+      return;
+    }
+
+    const center = mapRef.current?.getCenter();
+    if (!center) return;
+
+    const hazard = await createHazard({
+      longitude: center.lng,
+      latitude: center.lat,
+      type: newHazard.type,
+      confidence: 0.9, // High confidence for manual entries
+      source: 'manual',
+      description: newHazard.description
+    });
+
+    if (hazard) {
+      // Reset form
+      setNewHazard({ type: 'debris', description: '' });
+      setShowHazardForm(false);
+      
+      // Fly to the new hazard
+      mapRef.current?.flyTo({
+        center: [hazard.longitude, hazard.latitude],
+        zoom: 17,
+        duration: 1000
+      });
+    }
   }
 
   useImperativeHandle(ref, () => ({ addHazard }));
@@ -378,7 +461,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         onClick={clearRoute}
         style={{
           position: "absolute",
-          top: 220, // Moved down below the center on me button
+          top: 210, // Moved down below the center on me button
           right: 10,
           zIndex: 1000,
           padding: "8px 12px",
@@ -393,6 +476,158 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       >
         🗺️ Clear Route
       </button>
+
+      {/* Add Hazard Button */}
+      <button
+        onClick={() => setShowHazardForm(!showHazardForm)}
+        style={{
+          position: "absolute",
+          top: 260,
+          right: 10,
+          zIndex: 1000,
+          padding: "8px 12px",
+          fontSize: 14,
+          borderRadius: 6,
+          border: "none",
+          backgroundColor: showHazardForm ? "#DC2626" : "#16A34A",
+          color: "white",
+          cursor: "pointer",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+        }}
+      >
+        {showHazardForm ? "❌ Cancel" : "⚠️ Add Hazard"}
+      </button>
+
+      {/* Manual Hazard Form */}
+      {showHazardForm && (
+        <div
+          style={{
+            position: "absolute",
+            top: 310,
+            right: 10,
+            zIndex: 1000,
+            backgroundColor: "white",
+            padding: "16px",
+            borderRadius: 8,
+            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+            border: "1px solid #e5e7eb",
+            minWidth: 250,
+          }}
+        >
+          <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Add Hazard at Map Center</h3>
+          
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>Type:</label>
+            <select
+              value={newHazard.type}
+              onChange={(e) => setNewHazard(prev => ({ 
+                ...prev, 
+                type: e.target.value as 'debris' | 'water' | 'blocked' 
+              }))}
+              style={{
+                width: "100%",
+                padding: "8px",
+                border: "1px solid #d1d5db",
+                borderRadius: 4,
+                fontSize: 14,
+              }}
+            >
+              <option value="debris">🌳 Debris</option>
+              <option value="water">💧 Water</option>
+              <option value="blocked">🚧 Blocked</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>Description:</label>
+            <input
+              type="text"
+              value={newHazard.description}
+              onChange={(e) => setNewHazard(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="e.g., Fallen tree blocking trail"
+              style={{
+                width: "100%",
+                padding: "8px",
+                border: "1px solid #d1d5db",
+                borderRadius: 4,
+                fontSize: 14,
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={createManualHazard}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: "8px 16px",
+                backgroundColor: "#16A34A",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: loading ? "not-allowed" : "pointer",
+                fontSize: 14,
+              }}
+            >
+              {loading ? "Creating..." : "Create Hazard"}
+            </button>
+            <button
+              onClick={() => setShowHazardForm(false)}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "#6B7280",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hazard Status */}
+      {hazards.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 80,
+            left: 10,
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.7)",
+            color: "white",
+            borderRadius: 20,
+            padding: "6px 12px",
+            fontSize: 12,
+            fontWeight: "bold",
+          }}
+        >
+          📍 {hazards.length}
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 80,
+            left: 10,
+            zIndex: 1000,
+            background: "rgba(220, 38, 38, 0.9)",
+            color: "white",
+            borderRadius: 20,
+            padding: "6px 12px",
+            fontSize: 12,
+            fontWeight: "bold",
+          }}
+        >
+          ❌ Error
+        </div>
+      )}
 
       {/* Route status */}
       {routing?.busy && (

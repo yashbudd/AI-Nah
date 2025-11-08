@@ -9,11 +9,6 @@ yarn-error.log*
 .swc/
 out/
 
-# Environment variables
-.env
-.env.local
-.env.production.local
-.env.development.local
 
 # Build outputs
 dist/

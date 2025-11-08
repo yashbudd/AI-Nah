@@ -12,10 +12,10 @@ export async function POST() {
     await collection.deleteMany({})
     
     const testHazards: Omit<Hazard, '_id'>[] = [
-      // Close to your location (34.648460, -83.802681)
+      // Close to trail start (33.9869289, -85.047884)
       {
-        longitude: -83.802681,
-        latitude: 34.648460,
+        longitude: -85.047884,
+        latitude: 33.9869289,
         type: 'debris',
         confidence: 0.85,
         timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
@@ -24,8 +24,8 @@ export async function POST() {
         verified: true
       },
       {
-        longitude: -83.802234, // Very close to center
-        latitude: 34.648123,
+        longitude: -85.047500, // East of trail start (more visible)
+        latitude: 33.9872000,
         type: 'water',
         confidence: 0.92,
         timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
@@ -34,8 +34,8 @@ export async function POST() {
         verified: true
       },
       {
-        longitude: -83.803456, // Southwest of center
-        latitude: 34.647789,
+        longitude: -85.048200, // West of trail start (more visible)
+        latitude: 33.9866000,
         type: 'blocked',
         confidence: 0.78,
         timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
@@ -44,8 +44,8 @@ export async function POST() {
         verified: false
       },
       {
-        longitude: -83.801987, // Northeast of center
-        latitude: 34.649234,
+        longitude: -85.047600, // Northeast (more visible)
+        latitude: 33.9875000,
         type: 'debris',
         confidence: 0.65,
         timestamp: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
@@ -54,8 +54,8 @@ export async function POST() {
         verified: false
       },
       {
-        longitude: -83.803321, // West of center
-        latitude: 34.648567,
+        longitude: -85.048500, // Southwest (more visible)
+        latitude: 33.9863000,
         type: 'water',
         confidence: 0.89,
         timestamp: new Date(Date.now() - 45 * 60 * 1000), // 45 minutes ago
@@ -64,8 +64,8 @@ export async function POST() {
         verified: true
       },
       {
-        longitude: -83.801876, // East of center
-        latitude: 34.648945,
+        longitude: -85.047300, // Southeast (more visible)
+        latitude: 33.9860000,
         type: 'blocked',
         confidence: 0.95,
         timestamp: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago

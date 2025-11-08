@@ -27,15 +27,29 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [pos, setPos] = useState<{ lng: number; lat: number }>({ lng: -83.802681, lat: 34.648460 }); // Hardcoded to forest
+  const [pos, setPos] = useState<{ lng: number; lat: number }>({ lng: -85.047884, lat: 33.9869289 }); // Hardcoded to trail start
   
   // Use MongoDB hazards hook
-  const { hazards, loading, error, createHazard } = useHazards({
-    lat: 34.648460,
-    lng: -83.802681,
+  const { hazards, loading, error, createHazard, fetchHazards } = useHazards({
+    lat: 33.9869289,
+    lng: -85.047884,
     radius: 10,
     autoFetch: true
   });
+
+  // Debug hazards changes
+  useEffect(() => {
+    console.log('Hazards changed:', hazards.length, hazards.map(h => ({ type: h.type, lat: h.latitude, lng: h.longitude })));
+  }, [hazards]);
+
+  // Periodic refresh to ensure hazards stay current - reduce frequency to avoid UI flicker
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchHazards();
+    }, 60000); // Refresh every 60 seconds (reduced from 30)
+
+    return () => clearInterval(interval);
+  }, [fetchHazards]);
 
   // two-click routing state
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -142,7 +156,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     const m = new mapboxgl.Map({
       container: containerRef.current,
       style: "mapbox://styles/mapbox/outdoors-v12",
-      center: [-83.802681, 34.648460], // Chattahoochee Forest
+      center: [-85.047884, 33.9869289], // Trail start coordinates
       zoom: 14,
       attributionControl: false,
     });
@@ -159,10 +173,11 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     m.on("load", () => {
       setTimeout(() => m.resize(), 100);
 
-      // hazards source/layers
+      // hazards source/layers - Initialize with current hazard data
+      const initialHazardData = hazardsToGeoJSON();
       m.addSource(HAZARDS_SOURCE_ID, {
         type: "geojson",
-        data: hazardsToGeoJSON(),
+        data: initialHazardData,
       });
 
       m.addLayer({
@@ -185,6 +200,9 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
           "circle-stroke-width": 3,
           "circle-stroke-color": "#ffffff",
         },
+        layout: {
+          "visibility": "visible" // Ensure hazards are always visible
+        }
       });
 
       m.addLayer({
@@ -195,22 +213,23 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
           "text-field": ["match", ["get", "type"], "debris", "🪨", "water", "💧", "blocked", "🚫", "⚠️"],
           "text-size": 18,
           "text-anchor": "center",
+          "visibility": "visible" // Ensure hazard labels are always visible
         },
       });
 
       // route source/layer
       ensureRouteSource(m);
 
-      // Hardcode user location to Chattahoochee National Forest trail
-      const forestCoords = { lng: -83.802681, lat: 34.648460 }; // Chattahoochee Forest
-      setPos(forestCoords);
+      // Hardcode user location to trail start
+      const trailStartCoords = { lng: -85.047884, lat: 33.9869289 }; // Trail start coordinates
+      setPos(trailStartCoords);
 
-      // Add user location marker immediately at forest location
+      // Add user location marker immediately at trail start
       m.addSource(ME_SOURCE_ID, {
         type: "geojson",
         data: {
           type: "Feature",
-          geometry: { type: "Point", coordinates: [forestCoords.lng, forestCoords.lat] },
+          geometry: { type: "Point", coordinates: [trailStartCoords.lng, trailStartCoords.lat] },
           properties: {},
         },
       });
@@ -323,6 +342,22 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       m.on('mouseleave', HAZARDS_LAYER_ID, () => {
         m.getCanvas().style.cursor = '';
       });
+
+      // Ensure hazards are visible after map load - improved timing
+      setTimeout(() => {
+        if (m.getLayer(HAZARDS_LAYER_ID)) {
+          m.setLayoutProperty(HAZARDS_LAYER_ID, 'visibility', 'visible');
+        }
+        if (m.getLayer(HAZARD_LABELS_ID)) {
+          m.setLayoutProperty(HAZARD_LABELS_ID, 'visibility', 'visible');
+        }
+        // Force initial hazard data load
+        const src = m.getSource(HAZARDS_SOURCE_ID) as mapboxgl.GeoJSONSource;
+        if (src && hazards.length > 0) {
+          src.setData(hazardsToGeoJSON() as any);
+        }
+        console.log('Map loaded with hazards visible, initial count:', hazards.length);
+      }, 1000); // Increased delay to ensure everything is ready
     });
 
     return () => {
@@ -337,21 +372,41 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // hazards -> map sync
+  // hazards -> map sync with improved stability
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const src = map.getSource(HAZARDS_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
-    if (!src) return;
-    src.setData(hazardsToGeoJSON() as any);
+    if (!map || !map.isStyleLoaded()) return;
+    
+    const updateHazards = () => {
+      const src = map.getSource(HAZARDS_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+      if (src && hazards.length >= 0) { // Check for array existence, allow empty arrays
+        const geoData = hazardsToGeoJSON();
+        src.setData(geoData as any);
+        
+        console.log(`Updated map with ${hazards.length} hazards`);
+        
+        // Force visibility after data update with a small delay
+        setTimeout(() => {
+          if (map.getLayer(HAZARDS_LAYER_ID)) {
+            map.setLayoutProperty(HAZARDS_LAYER_ID, 'visibility', 'visible');
+          }
+          if (map.getLayer(HAZARD_LABELS_ID)) {
+            map.setLayoutProperty(HAZARD_LABELS_ID, 'visibility', 'visible');
+          }
+        }, 100);
+      }
+    };
+
+    // Add delay to ensure map is ready
+    setTimeout(updateHazards, 100);
   }, [hazards]);
 
   // actions
   function centerOnUser() {
-    // Always center on hardcoded forest location
-    const forestCoords = { lng: -83.802681, lat: 34.648460 }; // Chattahoochee Forest
+    // Always center on hardcoded trail start location
+    const trailStartCoords = { lng: -85.047884, lat: 33.9869289 }; // Trail start coordinates
     mapRef.current?.flyTo({ 
-      center: [forestCoords.lng, forestCoords.lat], 
+      center: [trailStartCoords.lng, trailStartCoords.lat], 
       zoom: 17, 
       duration: 1000, 
       essential: true 

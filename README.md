@@ -7,7 +7,6 @@ This is your **complete hackathon-ready TrailMix app** in Next.js format for tea
 ## 🚀 **Quick Start**
 
 ```bash
-cd trailmix
 npm install
 npm run dev
 ```
@@ -42,7 +41,7 @@ Already configured with your Mapbox token!
 
 ### **Structure:**
 ```
-trailmix/
+AI-Nah/
 ├── app/           # Next.js pages & layouts
 ├── components/    # Working UI components  
 ├── lib/          # Utilities & integrations

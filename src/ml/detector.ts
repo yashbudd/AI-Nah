@@ -38,7 +38,5 @@ export class Detector {
     });
   }
 
-  destroy() {
-    this.worker.terminate();
-  }
+  destroy() { this.worker.terminate(); }
 }

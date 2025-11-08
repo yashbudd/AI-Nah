@@ -1,11 +1,11 @@
-// src/components/DetectionView.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { Detector } from '@/ml/detector';
 import type { DetResult } from '@/types/hazard';
+import { postHazards, mapToHazard } from '@/lib/hazards';
 
-const TARGET_FPS = 10;
+const TARGET_FPS = 15;
 
 export default function DetectionView() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -13,31 +13,21 @@ export default function DetectionView() {
   const detectorRef = useRef<Detector | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [running, setRunning] = useState(true);
   const [threshold, setThreshold] = useState(0.5);
   const [fps, setFps] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
-  // start camera with current facingMode
   async function startCamera() {
     stopCamera();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
-      streamRef.current = stream;
-      const v = videoRef.current!;
-      v.srcObject = stream;
-      await v.play();
-    } catch (e: any) {
-      setErr(e?.message ?? 'Camera error');
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    streamRef.current = stream;
+    const v = videoRef.current!;
+    v.srcObject = stream;
+    await v.play();
   }
 
   function stopCamera() {
@@ -48,68 +38,59 @@ export default function DetectionView() {
   useEffect(() => {
     let cancel = false;
     let frames = 0;
-    let lastTick = performance.now();
     let fpsTimer: any;
     let raf = 0;
+    let postTick = 0;
 
     (async () => {
-      await startCamera();
+      try {
+        await startCamera();
 
-      const detector = new Detector();
-      detectorRef.current = detector;
-      await detector.init();
+        const detector = new Detector();
+        detectorRef.current = detector;
+        await detector.init();
 
-      // FPS counter
-      fpsTimer = setInterval(() => { setFps(frames); frames = 0; }, 1000);
+        fpsTimer = setInterval(() => { setFps(frames); frames = 0; }, 1000);
 
-      const tickRAF = async () => {
-        if (cancel) return;
-        raf = requestAnimationFrame(tickRAF);
-        await step();
-      };
-
-      // Prefer rVFC for efficiency if available
-      const v = videoRef.current!;
-      const useRVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
-      if (useRVFC) {
-        // @ts-ignore
-        const loop = async (_: any, __: any) => {
+        const tick = async () => {
           if (cancel) return;
-          await step();
-          // @ts-ignore
-          v.requestVideoFrameCallback(loop);
+          raf = requestAnimationFrame(tick);
+
+          if (!running) return;
+          const v = videoRef.current!;
+          if (!v || v.readyState < 2) return;
+
+          const now = performance.now();
+          if (now - postTick < 1000 / TARGET_FPS) return;
+          postTick = now;
+
+          const w = v.videoWidth, h = v.videoHeight;
+          const canvas = canvasRef.current!;
+          if (canvas.width !== w) canvas.width = w;
+          if (canvas.height !== h) canvas.height = h;
+
+          const bitmap = await createImageBitmap(v);
+          const results = await detector.run(bitmap, { scoreThreshold: threshold, maxDetections: 10 });
+
+          draw(canvas, results);
+          frames++;
+
+          // Send high-confidence hazards to API (throttled by TARGET_FPS)
+          const hazards = results
+            .filter(r => r.score >= 0.6)
+            .map(r => ({
+              type: mapToHazard(r.label),
+              confidence: r.score,
+              source: 'tfjs' as const,
+              bbox: r.bbox,
+              frameSize: [w, h]
+            }));
+          if (hazards.length) void postHazards(hazards);
         };
-        // @ts-ignore
-        v.requestVideoFrameCallback(loop);
-      } else {
-        raf = requestAnimationFrame(tickRAF);
-      }
 
-      async function step() {
-        if (!running) return;
-        const video = videoRef.current!;
-        if (!video || video.readyState < 2) return;
-
-        // throttle to TARGET_FPS when not using rVFC
-        const now = performance.now();
-        if (now - lastTick < 1000 / TARGET_FPS) return;
-        lastTick = now;
-
-        const w = video.videoWidth, h = video.videoHeight;
-        const canvas = canvasRef.current!;
-        if (canvas.width !== w) canvas.width = w;
-        if (canvas.height !== h) canvas.height = h;
-
-        const bitmap = await createImageBitmap(video);
-        const results = await detector.run(bitmap, { scoreThreshold: threshold, maxDetections: 10 });
-
-        draw(canvas, results);
-        frames++;
-
-        // Optional: send top detection to backend
-        if (results[0]) {
-          void sendDetection(results[0], w, h);
-        }
+        raf = requestAnimationFrame(tick);
+      } catch (e: any) {
+        setErr(e?.message ?? 'Camera error');
       }
     })();
 
@@ -120,8 +101,7 @@ export default function DetectionView() {
       detectorRef.current?.destroy();
       stopCamera();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode]); // restart camera if you flip front/back
+  }, [running, threshold]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -131,12 +111,6 @@ export default function DetectionView() {
           onClick={() => setRunning(r => !r)}
         >
           {running ? 'Pause' : 'Resume'}
-        </button>
-        <button
-          className="px-3 py-1 rounded border"
-          onClick={() => setFacingMode(m => (m === 'environment' ? 'user' : 'environment'))}
-        >
-          Camera: {facingMode === 'environment' ? 'Rear' : 'Front'}
         </button>
         <label className="text-sm ml-2">
           Confidence ≥ {Math.round(threshold * 100)}%
@@ -177,33 +151,8 @@ function draw(canvas: HTMLCanvasElement, results: DetResult[]) {
     const label = `${r.label} ${(r.score * 100).toFixed(0)}%`;
     const tw = ctx.measureText(label).width + 6;
     const th = 18;
-
     ctx.fillRect(x, y - th, tw, th);
     ctx.fillStyle = 'white';
     ctx.fillText(label, x + 3, y - th + 2);
   }
-}
-
-async function sendDetection(r: DetResult, frameW: number, frameH: number) {
-  // Example: POST a simplified hazard payload to your API
-  try {
-    await fetch('/api/hazards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: mapToHazard(r.label),
-        confidence: r.score,
-        bbox: r.bbox,
-        frameSize: [frameW, frameH]
-      })
-    });
-  } catch {}
-}
-
-function mapToHazard(label: string) {
-  const l = label.toLowerCase();
-  if (['bottle', 'cup', 'fork', 'knife', 'spoon'].includes(l)) return 'debris';
-  if (['chair', 'bench'].includes(l)) return 'blockage';
-  if (['sink', 'toilet'].includes(l)) return 'water';
-  return 'other';
 }

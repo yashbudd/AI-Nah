@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES6",
     "lib": [
       "ES2022",
       "DOM"
@@ -10,10 +10,10 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
-    "baseUrl": ".",
+    "baseUrl": ".", // Base directory for module resolution
     "paths": {
       "@/*": [
-        "./src/*"
+        "src/*" // Map @/ to the src directory
       ]
     },
     "types": [
@@ -32,11 +32,7 @@
     ]
   },
   "include": [
-    "next-env.d.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules"

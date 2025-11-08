@@ -1,11 +1,16 @@
 import { MongoClient, Db } from 'mongodb';
 
-let client: MongoClient | null = null;
+const uri = process.env.MONGODB_URI!;
+const dbName = process.env.MONGODB_DB || 'trailmix';
 
-export async function getDb(): Promise<Db> {
+let client: MongoClient | null = null;
+let db: Db | null = null;
+
+export async function getDb() {
   if (!client) {
-    client = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
+    client = new MongoClient(uri);
     await client.connect();
+    db = client.db(dbName);
   }
-  return client.db('your-database-name'); // Replace with your database name
+  return db!;
 }

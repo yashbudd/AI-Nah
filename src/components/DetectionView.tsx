@@ -4,13 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Detector } from '@/ml/detector';
 import type { DetResult } from '@/types/hazard';
 import { startGeo } from '@/lib/geo';
-import { mapToHazard, postHazards } from '@/lib/hazards';
+import { mapToHazard, postHazards, type HazardIn } from '@/lib/hazards';
 
 const TARGET_FPS = 15;
+
+type MappedResult = DetResult & { hazard: HazardIn['type'] };
 
 export default function DetectionView() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // hidden capture canvas for frame grabbing fallback
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const detectorRef = useRef<Detector | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -20,25 +25,31 @@ export default function DetectionView() {
   const [threshold, setThreshold] = useState(0.5);
   const [fps, setFps] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  const [tick, setTick] = useState(0); // lightweight loop heartbeat for debug
 
-  // start passive geolocation watcher once
   useEffect(() => {
-    const geoWatcher = startGeo((pos) => {
+    const stop = startGeo((pos) => {
       gpsRef.current = pos;
     });
-    return () => geoWatcher?.stop?.(); // Explicitly call the `stop` method
+    return () => stop?.stop?.();
   }, []);
 
-  // camera helpers
+  function colorFor(hazard: HazardIn['type']) {
+    switch (hazard) {
+      case 'debris': return '#D97706';   // orange
+      case 'water': return '#3B82F6';    // blue
+      case 'blockage': return '#EF4444'; // red
+      default: return '#10B981';         // green
+    }
+  }
+
   async function startCamera() {
     if (streamRef.current) return;
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
-
       streamRef.current = stream;
 
       const v = videoRef.current!;
@@ -68,20 +79,72 @@ export default function DetectionView() {
     }
   }
 
-  function draw(canvas: HTMLCanvasElement, results: DetResult[]) {
+  // Robust frame grabber with fallbacks (iOS/Safari safe)
+  async function grabFrame(v: HTMLVideoElement): Promise<ImageBitmap | null> {
+    try {
+      if ('createImageBitmap' in window) {
+        // Works in most modern browsers, but not reliably on older iOS
+        // @ts-ignore
+        return await createImageBitmap(v);
+      }
+    } catch {
+      // fall through to canvas path
+    }
+
+    // Canvas fallback
+    if (!captureCanvasRef.current) {
+      captureCanvasRef.current = document.createElement('canvas');
+    }
+    const cap = captureCanvasRef.current;
+    if (!cap) return null;
+    if (cap.width !== v.videoWidth || cap.height !== v.videoHeight) {
+      cap.width = v.videoWidth;
+      cap.height = v.videoHeight;
+    }
+    const ctx = cap.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0, cap.width, cap.height);
+
+    try {
+      // Fast path if supported
+      // @ts-ignore
+      if (cap.transferToImageBitmap) {
+        // @ts-ignore
+        return cap.transferToImageBitmap();
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Universal path
+    // @ts-ignore
+    if (window.createImageBitmap) {
+      // @ts-ignore
+      return await createImageBitmap(cap);
+    }
+
+    return null;
+  }
+
+  function draw(canvas: HTMLCanvasElement, results: MappedResult[]) {
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 2;
     ctx.font = '14px system-ui';
     ctx.textBaseline = 'top';
 
+    // heartbeat dot so you can see the loop is alive
+    ctx.fillStyle = 'rgba(16,185,129,0.8)';
+    ctx.fillRect(8, 8, 6, 6);
+
     for (const r of results) {
+      if (r.hazard === 'other') continue;
       const [x, y, w, h] = r.bbox;
 
-      ctx.strokeStyle = 'lime';
+      ctx.strokeStyle = colorFor(r.hazard);
       ctx.strokeRect(x, y, w, h);
 
-      const label = `${r.label} ${(r.score * 100).toFixed(0)}%`;
+      const label = `${r.hazard} ${(r.score * 100).toFixed(0)}%`;
       const tw = ctx.measureText(label).width + 6;
       const th = 18;
 
@@ -93,7 +156,6 @@ export default function DetectionView() {
     }
   }
 
-  // detection lifecycle
   useEffect(() => {
     let raf = 0;
     let fpsTimer: number | null = null;
@@ -106,12 +168,10 @@ export default function DetectionView() {
 
       const det = new Detector();
       detectorRef.current = det;
-      try {
-        await det.init();
-      } catch (e: any) {
+      await det.init().catch((e: any) => {
         setErr(e?.message ?? 'Detector init error');
-        return;
-      }
+        throw e;
+      });
 
       let frames = 0;
       fpsTimer = window.setInterval(() => {
@@ -130,32 +190,42 @@ export default function DetectionView() {
             return;
           }
 
-          // keep canvas in lockstep with video size
           if (c.width !== v.videoWidth || c.height !== v.videoHeight) {
             c.width = v.videoWidth;
             c.height = v.videoHeight;
           }
 
-          // throttle to target FPS
           const start = performance.now();
-          const frame = await createImageBitmap(v);
-          const results = await detectorRef.current!.run(frame, {
+
+          const frame = await grabFrame(v); // <— robust frame capture
+          if (!frame) {
+            // No frame available; still tick so you see the heartbeat
+            setTick((t) => (t + 1) % 100000);
+            raf = requestAnimationFrame(loop);
+            return;
+          }
+
+          const raw = await detectorRef.current!.run(frame, {
             scoreThreshold: threshold,
             maxDetections: 10,
           });
 
-          draw(c, results);
+          const mapped: MappedResult[] = raw.map((r) => ({
+            ...r,
+            hazard: mapToHazard(r.label),
+          }));
+
+          draw(c, mapped);
           frames++;
 
-          // post at most once per second
           const now = performance.now();
-          if (now - lastPost > 1000 && results.length) {
+          if (now - lastPost > 1000) {
             lastPost = now;
             const fix = gpsRef.current || undefined;
-            const hazards = results
-              .filter((r) => r.score >= Math.max(threshold, 0.5))
+            const hazards = mapped
+              .filter((r) => r.hazard !== 'other' && r.score >= Math.max(threshold, 0.5))
               .map((r) => ({
-                type: mapToHazard(r.label),
+                type: r.hazard,
                 confidence: r.score,
                 source: 'tfjs' as const,
                 bbox: r.bbox,
@@ -165,7 +235,6 @@ export default function DetectionView() {
             if (hazards.length) void postHazards(hazards);
           }
 
-          // simple pacing toward TARGET_FPS without blocking the UI
           const elapsed = performance.now() - start;
           const frameBudget = 1000 / TARGET_FPS;
           if (elapsed < frameBudget) {
@@ -190,9 +259,8 @@ export default function DetectionView() {
       detectorRef.current?.destroy();
       stopCamera();
     };
-  }, [running]); // Only restart when running toggles
+  }, [running]);
 
-  // overlay styles
   const wrapperStyle: React.CSSProperties = {
     position: 'relative',
     display: 'inline-block',
@@ -240,7 +308,7 @@ export default function DetectionView() {
         </button>
 
         <div style={{ marginLeft: 'auto', opacity: 0.7, fontSize: 14 }}>
-          {err ? <span style={{ color: '#dc2626' }}>{err}</span> : <>FPS: {fps}</>}
+          {err ? <span style={{ color: '#dc2626' }}>{err}</span> : <>FPS: {fps} · tick {tick}</>}
         </div>
       </div>
 

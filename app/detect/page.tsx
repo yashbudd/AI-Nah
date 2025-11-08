@@ -1,12 +1,8 @@
 'use client'
 
-import { useRef } from 'react';
 import DetectionView from '@/components/DetectionView';
-import MapView from '@/components/MapView';
 
 export default function DetectPage() {
-  const mapRef = useRef<any>(null);
-
   async function getPosition() {
     return new Promise<{lat:number;lng:number}>((res, rej)=>{
       navigator.geolocation.getCurrentPosition(p => res({ lat:p.coords.latitude, lng:p.coords.longitude }), rej, { enableHighAccuracy:true });
@@ -14,18 +10,16 @@ export default function DetectPage() {
   }
 
   function handleHazardReport(hazard: {type:"debris"|"water"|"blocked"; lat:number; lng:number}) {
-    // Add hazard to map
-    if (mapRef.current?.addHazard) {
-      mapRef.current.addHazard(hazard);
-    }
+    // In a real app, this would sync with a global state or API
+    console.log('Hazard reported:', hazard);
+    alert(`Hazard reported: ${hazard.type} at ${hazard.lat.toFixed(4)}, ${hazard.lng.toFixed(4)}`);
   }
 
   return (
     <div>
       <DetectionView onHazardReport={handleHazardReport} getPosition={getPosition} />
-      <MapView ref={mapRef} />
       <div className="tip" style={{ textAlign: 'center', marginTop: 16 }}>
-        💡 Tip: Report hazards with camera, see them on map below
+        Camera Detection - Report trail hazards you see
       </div>
     </div>
   );

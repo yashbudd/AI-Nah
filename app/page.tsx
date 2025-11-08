@@ -23,33 +23,34 @@ export default function HomePage() {
 
   return (
     <div>
-      <DetectionView onHazardReport={handleHazardReport} getPosition={getPosition} />
-      <MapView ref={mapRef} />
-      <HazardList onAddHazard={handleHazardReport} />
-      
-      <div className="tip" style={{ textAlign: 'center', marginTop: 16 }}>
-        💡 Tip: Use manual reporting or demo mode to test hazard detection
-      </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-        <button 
-          onClick={() => window.location.href = '/map'}
-          className="btn-secondary"
-        >
-          🗺️ Map Only View
-        </button>
-        <button 
-          onClick={() => window.location.href = '/detect'}
-          className="btn-secondary"
-        >
-          📸 Camera Only View
-        </button>
-        <button 
-          onClick={() => window.location.href = '/chat'}
-          className="btn-secondary"
-        >
-          💬 Chat Interface
-        </button>
+      <div className="welcome-section">
+        <h2>🏠 Welcome to TrailMix</h2>
+        <p>Your AI-powered trail safety companion</p>
+        
+        <div className="feature-grid">
+          <div className="feature-card">
+            <div className="feature-icon">📸</div>
+            <h3>Camera Detection</h3>
+            <p>Report trail hazards with your camera</p>
+          </div>
+          
+          <div className="feature-card">
+            <div className="feature-icon">🗺️</div>
+            <h3>Interactive Map</h3>
+            <p>View hazards and plan your route</p>
+          </div>
+          
+          <div className="feature-card">
+            <div className="feature-icon">💬</div>
+            <h3>AI Assistant</h3>
+            <p>Get trail safety advice and tips</p>
+          </div>
+        </div>
+        
+        <div className="quick-actions">
+          <h3>Quick Start</h3>
+          <p>Use the bottom navigation to explore features</p>
+        </div>
       </div>
     </div>
   );

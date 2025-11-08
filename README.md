@@ -18,26 +18,30 @@ Open http://localhost:3001
 ### **Complete Features:**
 - 🗺️ **Interactive Map** - Mapbox with geolocation & hazard pins
 - 📸 **Camera Detection** - Manual hazard reporting with visual feedback  
+- 💬 **AI Chat Assistant** - Gemini-powered trail safety advisor
 - 🎯 **Demo Mode** - Atlanta trail hazards for presentations
 - 📱 **Mobile-First** - Touch-optimized UI design
-- 🔄 **Integrated Flow** - Camera → Map → Display hazards
+- 🔄 **Integrated Flow** - Camera → Map → AI Chat
 
 ### **Pages Ready:**
-- **`/`** - Complete integrated app (camera + map)
-- **`/map`** - Map view with demo mode
-- **`/detect`** - Camera + Map integration
-- **`/chat`** - Ready for AI chat features
+- **`/`** - Welcome page with feature overview
+- **`/map`** - Interactive map with demo mode
+- **`/detect`** - Camera detection interface
+- **`/chat`** - Live AI chat with Gemini integration
 
 ## 🛠️ **For Your Team**
 
 ### **Ready to Build On:**
-- `app/api/` - Backend API routes
+- `app/api/chat/` - Live AI chat API with Gemini
+- `lib/gemini.ts` - AI chat wrapper & utilities
+- `components/ChatInterface.tsx` - Full chat UI
 - `ml/` - AI/ML detection models
 - `lib/db.ts` - Database integration
-- `utils/gemini.ts` - AI chat functionality
 
 ### **Environment:**
-Already configured with your Mapbox token!
+Copy `.env.example` to `.env.local` and add your API keys:
+- Mapbox token for maps
+- Gemini API key for AI chat
 
 ### **Structure:**
 ```
@@ -53,9 +57,10 @@ AI-Nah/
 ## 🎯 **Hackathon Ready**
 
 **Everything migrated and working!** Your teammate can now add:
-- AI detection models
-- Real-time chat features  
+- Enhanced AI detection models
+- Real-time hazard sharing  
 - Database persistence
 - Advanced trail analytics
+- Group chat features
 
-**Let's build something amazing! 🚀⛰️**
+**Live AI chat is now integrated! 🚀⛰️**

@@ -24,7 +24,7 @@ export default function MapPage() {
       <MapView ref={mapRef} />
       <HazardList onAddHazard={handleHazardAdded} />
       <div className="tip" style={{ textAlign: 'center', marginTop: 16 }}>
-        💡 Tip: Use demo mode to test with sample hazards
+        �️ Interactive Map - View hazards and plan your route
       </div>
     </div>
   );

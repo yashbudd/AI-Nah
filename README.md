@@ -24,7 +24,8 @@ The development server runs on port 3001 by default. Open http://localhost:3001 
 - 📸 On-device camera detection using a Web Worker + TensorFlow.js (coco-ssd)
 - 🧭 Hazard-aware routing API (cost-grid + A* pathfinder) that weights cells by hazard penalty
 - 💬 Gemini (Google) powered chat assistant for trail safety advice
-- 🗄️ MongoDB-backed hazard store with offline-first ideas in mind
+- � Text-to-speech functionality using ElevenLabs AI for voice responses
+- �🗄️ MongoDB-backed hazard store with offline-first ideas in mind
 - 📱 Mobile-first, touch-optimized UI components for quick demos
 
 ## 🧩 Pages / UI
@@ -32,7 +33,7 @@ The development server runs on port 3001 by default. Open http://localhost:3001 
 - `/` — Landing / overview ✨
 - `/map` — Map interface with hazards, two-click routing and manual hazard reporting 🧭
 - `/detect` — Camera / detection UI (runs model in a Worker) 📷
-- `/chat` — AI chat assistant backed by Gemini 💬
+- `/chat` — AI chat assistant backed by Gemini with voice playback 💬🔊
 
 ## 🔧 Architecture & Key Implementation Notes
 
@@ -40,7 +41,9 @@ The development server runs on port 3001 by default. Open http://localhost:3001 
   into a WebGL backend for image-based detections in the browser.
 - 🤖 AI chat: `src/lib/gemini.ts` wraps `@google/genai` to produce trail-safety responses. Add a Gemini API key
   to enable live chat.
-- 🗺️ Hazard database: MongoDB is used via `src/lib/mongodb.ts`. Hazard documents include `latitude`, `longitude`,
+- � Text-to-speech: `src/app/api/tts/route.ts` uses ElevenLabs API to convert AI responses to natural speech.
+  Users can click the speaker button next to assistant messages to hear them spoken aloud.
+- �🗺️ Hazard database: MongoDB is used via `src/lib/mongodb.ts`. Hazard documents include `latitude`, `longitude`,
   `type`, `confidence`, `source`, and `description`.
 - 🛣️ Adaptive routing: `src/app/api/routes/route.ts` builds a cost grid (cells ~8 m by default) and runs an
   A* search on an 8-connected grid. Hazards are smeared into the grid as additive penalties (based on type,
@@ -52,6 +55,7 @@ Create `.env.local` (copy from a template if present) and set the following valu
 
 - `NEXT_PUBLIC_MAPBOX_TOKEN` — Mapbox public token for the map UI. 🗺️
 - `GEMINI_API_KEY` — Gemini / Google GenAI API key to enable the chat assistant. 💬
+- `ELEVEN_API_KEY` — ElevenLabs API key to enable text-to-speech functionality. 🔊
 - `MONGODB_URI` — MongoDB connection string used by the server-side API. 🗄️
 - `MONGODB_DB` — (optional) database name; defaults to `test`.
 
@@ -71,6 +75,7 @@ Create `.env.local` (copy from a template if present) and set the following valu
 - Mapbox GL JS for interactive maps
 - TensorFlow.js + coco-ssd in a Web Worker for browser-based detection
 - @google/genai for Gemini-powered chat (server / serverless API)
+- @elevenlabs/elevenlabs-js for AI-powered text-to-speech
 - MongoDB for hazards and persistence
 
 ## 🗂️ Files & locations (high level)
@@ -78,6 +83,7 @@ Create `.env.local` (copy from a template if present) and set the following valu
 - `src/app/` — Next.js app routes and API endpoints
   - `src/app/api/routes/route.ts` — routing API (cost grid + A*)
   - `src/app/api/chat/route.ts` — chat API surface
+  - `src/app/api/tts/route.ts` — text-to-speech API using ElevenLabs
   - `src/app/api/hazards/route.ts` — hazards CRUD
 - `src/components/` — UI components (MapView, ChatInterface, etc.)
 - `src/ml/` — client detector and worker (`detector.ts`, `detector.worker.ts`)
@@ -179,6 +185,8 @@ Why TrailMix
 ### 💬 Interactive Chatbot
 - Uses hazard database + Gemini for safety insights  
 - Provides real-time Q&A for trail conditions  
+- **Text-to-speech playback** using ElevenLabs AI voices  
+- Click speaker button (🔊) next to responses to hear them spoken aloud  
 
 ---
 

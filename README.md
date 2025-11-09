@@ -18,15 +18,17 @@ npm run dev
 
 The development server runs on port 3001 by default. Open http://localhost:3001 in your browser. 🌐
 
+You may also use: www.tmix.tech
+
 ## 🔍 What this prototype includes
 
 - 🗺️ Interactive Map (Mapbox) with hazard pins and route visualization
 - 📸 On-device camera detection using a Web Worker + TensorFlow.js (coco-ssd)
 - 🧭 Hazard-aware routing API (cost-grid + A* pathfinder) that weights cells by hazard penalty
-- 💬 Gemini (Google) powered chat assistant for trail safety advice
+- 💬 Azure (Microsoft) powered chat assistant for trail safety advice and risk assessments for hazards
 - � Text-to-speech functionality using ElevenLabs AI for voice responses
 - �🗄️ MongoDB-backed hazard store with offline-first ideas in mind
-- 📱 Mobile-first, touch-optimized UI components for quick demos
+- 📱 Mobile-first, touch-optimized UI components for quick demos + automatic messaging for emergency situations
 
 ## 🧩 Pages / UI
 
@@ -49,16 +51,6 @@ The development server runs on port 3001 by default. Open http://localhost:3001 
   A* search on an 8-connected grid. Hazards are smeared into the grid as additive penalties (based on type,
   radius and confidence) so the route prefers lower-risk cells — effectively a hazard-weighted A*.
 
-## 🔐 Environment variables
-
-Create `.env.local` (copy from a template if present) and set the following values:
-
-- `NEXT_PUBLIC_MAPBOX_TOKEN` — Mapbox public token for the map UI. 🗺️
-- `GEMINI_API_KEY` — Gemini / Google GenAI API key to enable the chat assistant. 💬
-- `ELEVEN_API_KEY` — ElevenLabs API key to enable text-to-speech functionality. 🔊
-- `MONGODB_URI` — MongoDB connection string used by the server-side API. 🗄️
-- `MONGODB_DB` — (optional) database name; defaults to `test`.
-
 ## 🧭 How routing handles hazards (brief)
 
 - 📍 Hazards from MongoDB are fetched within an expanded bbox for routing.
@@ -74,7 +66,7 @@ Create `.env.local` (copy from a template if present) and set the following valu
 - React (client-side UI components)
 - Mapbox GL JS for interactive maps
 - TensorFlow.js + coco-ssd in a Web Worker for browser-based detection
-- @google/genai for Gemini-powered chat (server / serverless API)
+- Azure and OpenAI for Gemini-powered chat (server / serverless API)
 - @elevenlabs/elevenlabs-js for AI-powered text-to-speech
 - MongoDB for hazards and persistence
 

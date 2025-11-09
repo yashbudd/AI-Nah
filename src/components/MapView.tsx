@@ -65,7 +65,11 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     description: ''
   });
 
-    // ---- helpers ----
+  const [showEmergencyConfirm, setShowEmergencyConfirm] = useState(false);
+  const [emergencyToast, setEmergencyToast] = useState<string | null>(null);
+  const emergencyToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ---- helpers ----
   function hazardsToGeoJSON() {
     return {
       type: "FeatureCollection" as const,
@@ -149,6 +153,15 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     const map = mapRef.current!;
     return new mapboxgl.Marker({ color }).setLngLat([ll.lng, ll.lat]).addTo(map);
   }
+
+  const triggerEmergencySimulation = () => {
+    setShowEmergencyConfirm(false);
+    setEmergencyToast("Emergency alert sent to nearest response team (simulation)");
+    if (emergencyToastTimeoutRef.current) {
+      clearTimeout(emergencyToastTimeoutRef.current);
+    }
+    emergencyToastTimeoutRef.current = setTimeout(() => setEmergencyToast(null), 5000);
+  };
 
   // ---- map init ----
   useEffect(() => {
@@ -494,6 +507,14 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
 
   useImperativeHandle(ref, () => ({ addHazard }));
 
+  useEffect(() => {
+    return () => {
+      if (emergencyToastTimeoutRef.current) {
+        clearTimeout(emergencyToastTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
@@ -653,6 +674,65 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         </div>
       )}
 
+      {/* Emergency button */}
+      <button
+        onClick={() => setShowEmergencyConfirm(true)}
+        className="map-action-button"
+        style={{
+          top: 210,
+          left: 10,
+          right: undefined,
+          background: "linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)",
+        }}
+      >
+        <span>🚨</span>
+        <span>Emergency</span>
+      </button>
+
+      {showEmergencyConfirm && (
+        <div
+          style={{
+            position: "absolute",
+            top: 260,
+            left: 10,
+            zIndex: 1000,
+            background: "white",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+            border: "1px solid var(--border-light)",
+            padding: 16,
+            maxWidth: 260,
+          }}
+        >
+          <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 700 }}>Send Emergency Alert?</h3>
+          <p style={{ fontSize: 13, color: "var(--text-medium)", margin: "0 0 12px 0" }}>
+            This will simulate dispatching the nearest response team using Azure services.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={triggerEmergencySimulation}
+              className="btn-primary"
+              style={{ flex: 1, padding: "8px 16px" }}
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setShowEmergencyConfirm(false)}
+              style={{
+                padding: "8px 16px",
+                background: "#6B7280",
+                color: "white",
+                borderRadius: "var(--radius-md)",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hazard Status */}
       {hazards.length > 0 && (
         <div className="map-status-badge info" style={{ bottom: 80, left: 10 }}>
@@ -675,6 +755,21 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       {routing?.error && (
         <div className="map-status-badge error" style={{ bottom: 10, left: "50%", transform: "translateX(-50%)" }}>
           ❌ {routing.error}
+        </div>
+      )}
+
+      {emergencyToast && (
+        <div
+          className="map-status-badge info"
+          style={{
+            top: 160,
+            left: 10,
+            right: undefined,
+            bottom: undefined,
+            background: "rgba(17,24,39,0.85)",
+          }}
+        >
+          {emergencyToast}
         </div>
       )}
     </div>

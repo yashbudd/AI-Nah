@@ -37,7 +37,7 @@ export default function HomePage() {
         <p className="home-motto">Explore Smarter, Adventure Safer</p>
         <p className="home-description">
           Your intelligent companion for safer trail adventures. 
-          Detect hazards, navigate trails, and get expert safety advice—all in one app.
+          Detect hazards, navigate trails, and get expert safety advice, all in one app.
         </p>
       </div>
 

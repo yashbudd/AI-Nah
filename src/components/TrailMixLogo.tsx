@@ -6,78 +6,60 @@ export default function TrailMixLogo({ size = 40 }: { size?: number }) {
       <svg
         width={size}
         height={size}
-        viewBox="0 0 100 100"
-        fill="none"
+        viewBox="0 0 200 200"
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label="TrailMix logo"
       >
-        {/* Octagonal background - using rounded rect with clip path for octagon effect */}
         <defs>
-          <clipPath id="octagon-clip">
-            <path d="M15 20 L20 15 L80 15 L85 20 L85 80 L80 85 L20 85 L15 80 Z" />
+          <clipPath id="map-clip">
+            <rect x="15" y="25" width="170" height="150" rx="22" ry="22" />
           </clipPath>
         </defs>
         <rect
           x="15"
-          y="15"
-          width="70"
-          height="70"
-          rx="8"
-          ry="8"
-          fill="#F5F5DC"
-          stroke="#001f03"
-          strokeWidth="2.5"
+          y="25"
+          width="170"
+          height="150"
+          rx="22"
+          ry="22"
+          fill="#1D3B1F"
         />
-        
-        {/* Light blue sky/water area */}
-        <rect
-          x="25"
-          y="28"
-          width="50"
-          height="18"
-          fill="#87CEEB"
-          stroke="#001f03"
-          strokeWidth="1.5"
-        />
-        
-        {/* Green land area */}
-        <rect
-          x="25"
-          y="46"
-          width="50"
-          height="26"
-          fill="#4CAF50"
-          stroke="#001f03"
-          strokeWidth="1.5"
-        />
-        
-        {/* Dashed trail path */}
-        <line
-          x1="32"
-          y1="59"
-          x2="68"
-          y2="59"
-          stroke="#001f03"
-          strokeWidth="2.5"
-          strokeDasharray="5 4"
-          strokeLinecap="round"
-        />
-        
-        {/* Starting point circle */}
-        <circle cx="32" cy="59" r="3.5" fill="#001f03" />
-        
-        {/* Location pin at end - triangle + circle */}
-        <g transform="translate(68, 59)">
-          {/* Pin triangle */}
+        <g clipPath="url(#map-clip)">
+          <rect x="20" y="30" width="160" height="140" fill="#66B0A6" />
           <path
-            d="M 0 -9 L -5 0 L 5 0 Z"
-            fill="#4CAF50"
-            stroke="#001f03"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
+            d="M20 120 C 70 110, 90 140, 120 140 C 150 140, 180 120, 180 120 L 180 170 L 20 170 Z"
+            fill="#4B9B55"
           />
-          {/* Pin center circle */}
-          <circle cx="0" cy="-5" r="2.5" fill="#001f03" />
+          <path
+            d="M30 150 Q 70 120 100 140 Q 130 160 160 120"
+            fill="none"
+            stroke="#0C210E"
+            strokeWidth="12"
+            strokeLinecap="round"
+            strokeDasharray="28 18"
+          />
+          <circle cx="38" cy="156" r="12" fill="#0C210E" />
         </g>
+        <path
+          d="M148 20 C 130 20 116 34 116 52 C 116 65 137 102 148 120 C 159 102 180 65 180 52 C 180 34 166 20 148 20 Z"
+          fill="#4B9B55"
+          stroke="#0C210E"
+          strokeWidth="10"
+          strokeLinejoin="round"
+        />
+        <circle cx="148" cy="52" r="16" fill="#0C210E" />
+        <rect
+          x="15"
+          y="25"
+          width="170"
+          height="150"
+          rx="22"
+          ry="22"
+          stroke="#0C210E"
+          strokeWidth="12"
+          fill="none"
+        />
       </svg>
     </div>
   );

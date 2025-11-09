@@ -113,7 +113,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         source: ROUTE_SOURCE_ID,
         paint: {
           "line-width": 4,
-          "line-color": "#10B981",
+          "line-color": "#001f03",
           "line-opacity": 0.9,
         },
       });
@@ -195,7 +195,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
             "#3B82F6",
             "blocked",
             "#EF4444",
-            "#10B981",
+            "#001f03",
           ],
           "circle-stroke-width": 3,
           "circle-stroke-color": "#ffffff",
@@ -238,7 +238,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         type: "circle",
         source: ME_SOURCE_ID,
         paint: {
-          "circle-color": "#10B981",
+          "circle-color": "#001f03",
           "circle-radius": 12,
           "circle-stroke-width": 4,
           "circle-stroke-color": "#ffffff",
@@ -481,30 +481,10 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       {/* Center on Me */}
       <button
         onClick={centerOnUser}
+        className="map-control-button"
         style={{
-          position: "absolute",
-          top: 160, // Moved down to be below navigation controls
+          top: 160,
           right: 10,
-          zIndex: 1000,
-          width: 40,
-          height: 40,
-          borderRadius: 4,
-          border: "none",
-          backgroundColor: "#fff",
-          color: "#404040",
-          cursor: "pointer",
-          boxShadow: "0 0 0 2px rgba(0,0,0,.1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 18,
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "#f8f9fa";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "#fff";
         }}
         title="Get my location"
       >
@@ -514,65 +494,44 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       {/* Clear Route */}
       <button
         onClick={clearRoute}
+        className="map-action-button"
         style={{
-          position: "absolute",
-          top: 210, // Moved down below the center on me button
+          top: 210,
           right: 10,
-          zIndex: 1000,
-          padding: "8px 12px",
-          fontSize: 14,
-          borderRadius: 6,
-          border: "none",
-          backgroundColor: "#111827",
-          color: "white",
-          cursor: "pointer",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          background: "linear-gradient(135deg, #111827 0%, #1F2937 100%)",
         }}
       >
-        🗺️ Clear Route
+        <span>🗺️</span>
+        <span>Clear Route</span>
       </button>
 
       {/* Add Hazard Button */}
       <button
         onClick={() => setShowHazardForm(!showHazardForm)}
+        className="map-action-button"
         style={{
-          position: "absolute",
           top: 260,
           right: 10,
-          zIndex: 1000,
-          padding: "8px 12px",
-          fontSize: 14,
-          borderRadius: 6,
-          border: "none",
-          backgroundColor: showHazardForm ? "#DC2626" : "#16A34A",
-          color: "white",
-          cursor: "pointer",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          background: showHazardForm 
+            ? "linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)" 
+            : "linear-gradient(135deg, #16A34A 0%, #15803D 100%)",
         }}
       >
-        {showHazardForm ? "❌ Cancel" : "⚠️ Add Hazard"}
+        <span>{showHazardForm ? "❌" : "⚠️"}</span>
+        <span>{showHazardForm ? "Cancel" : "Add Hazard"}</span>
       </button>
 
       {/* Manual Hazard Form */}
       {showHazardForm && (
-        <div
-          style={{
-            position: "absolute",
-            top: 310,
-            right: 10,
-            zIndex: 1000,
-            backgroundColor: "white",
-            padding: "16px",
-            borderRadius: 8,
-            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-            border: "1px solid #e5e7eb",
-            minWidth: 250,
-          }}
-        >
-          <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Add Hazard at Map Center</h3>
+        <div className="map-hazard-form" style={{ top: 310, right: 10 }}>
+          <h3 style={{ margin: "0 0 16px 0", fontSize: 18, fontWeight: 700, color: "var(--text-dark)" }}>
+            Add Hazard at Map Center
+          </h3>
           
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>Type:</label>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 600, color: "var(--text-dark)" }}>
+              Type:
+            </label>
             <select
               value={newHazard.type}
               onChange={(e) => setNewHazard(prev => ({ 
@@ -581,10 +540,21 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
               }))}
               style={{
                 width: "100%",
-                padding: "8px",
-                border: "1px solid #d1d5db",
-                borderRadius: 4,
+                padding: "10px 12px",
+                border: "2px solid var(--border-light)",
+                borderRadius: "var(--radius-md)",
                 fontSize: 14,
+                background: "white",
+                cursor: "pointer",
+                transition: "all var(--transition-base)",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--primary-dark)";
+                e.target.style.boxShadow = "0 0 0 3px rgba(0, 31, 3, 0.1)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--border-light)";
+                e.target.style.boxShadow = "none";
               }}
             >
               <option value="debris">🌳 Debris</option>
@@ -593,8 +563,10 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
             </select>
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>Description:</label>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 600, color: "var(--text-dark)" }}>
+              Description:
+            </label>
             <input
               type="text"
               value={newHazard.description}
@@ -602,27 +574,33 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
               placeholder="e.g., Fallen tree blocking trail"
               style={{
                 width: "100%",
-                padding: "8px",
-                border: "1px solid #d1d5db",
-                borderRadius: 4,
+                padding: "10px 12px",
+                border: "2px solid var(--border-light)",
+                borderRadius: "var(--radius-md)",
                 fontSize: 14,
+                transition: "all var(--transition-base)",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--primary-dark)";
+                e.target.style.boxShadow = "0 0 0 3px rgba(0, 31, 3, 0.1)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--border-light)";
+                e.target.style.boxShadow = "none";
               }}
             />
           </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 10 }}>
             <button
               onClick={createManualHazard}
               disabled={loading}
+              className="btn-primary"
               style={{
                 flex: 1,
-                padding: "8px 16px",
-                backgroundColor: "#16A34A",
-                color: "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: loading ? "not-allowed" : "pointer",
+                padding: "10px 16px",
                 fontSize: 14,
+                opacity: loading ? 0.6 : 1,
               }}
             >
               {loading ? "Creating..." : "Create Hazard"}
@@ -630,13 +608,21 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
             <button
               onClick={() => setShowHazardForm(false)}
               style={{
-                padding: "8px 16px",
+                padding: "10px 16px",
                 backgroundColor: "#6B7280",
                 color: "white",
                 border: "none",
-                borderRadius: 4,
+                borderRadius: "var(--radius-md)",
                 cursor: "pointer",
                 fontSize: 14,
+                fontWeight: 600,
+                transition: "all var(--transition-base)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#4B5563";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#6B7280";
               }}
             >
               Cancel
@@ -647,78 +633,26 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
 
       {/* Hazard Status */}
       {hazards.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 80,
-            left: 10,
-            zIndex: 1000,
-            background: "rgba(0,0,0,0.7)",
-            color: "white",
-            borderRadius: 20,
-            padding: "6px 12px",
-            fontSize: 12,
-            fontWeight: "bold",
-          }}
-        >
-          📍 {hazards.length}
+        <div className="map-status-badge info" style={{ bottom: 80, left: 10 }}>
+          📍 {hazards.length} {hazards.length === 1 ? 'Hazard' : 'Hazards'}
         </div>
       )}
 
       {error && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 80,
-            left: 10,
-            zIndex: 1000,
-            background: "rgba(220, 38, 38, 0.9)",
-            color: "white",
-            borderRadius: 20,
-            padding: "6px 12px",
-            fontSize: 12,
-            fontWeight: "bold",
-          }}
-        >
+        <div className="map-status-badge error" style={{ bottom: 80, left: 10 }}>
           ❌ Error
         </div>
       )}
 
       {/* Route status */}
       {routing?.busy && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1000,
-            background: "rgba(17,24,39,0.8)",
-            color: "white",
-            padding: "6px 10px",
-            borderRadius: 6,
-            fontSize: 13,
-          }}
-        >
-          Computing route…
+        <div className="map-status-badge info" style={{ bottom: 10, left: "50%", transform: "translateX(-50%)" }}>
+          ⏳ Computing route…
         </div>
       )}
       {routing?.error && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1000,
-            background: "rgba(220,38,38,0.9)",
-            color: "white",
-            padding: "6px 10px",
-            borderRadius: 6,
-            fontSize: 13,
-          }}
-        >
-          {routing.error}
+        <div className="map-status-badge error" style={{ bottom: 10, left: "50%", transform: "translateX(-50%)" }}>
+          ❌ {routing.error}
         </div>
       )}
     </div>

@@ -1,38 +1,42 @@
 import OpenAI from "openai";
 
-const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini";
+// ---- Env + client setup (classic Azure style) ----
+const AZURE_ENDPOINT = (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, ""); // no trailing slash
+const AZURE_KEY = process.env.AZURE_OPENAI_API_KEY;
+const AZURE_VERSION = process.env.AZURE_OPENAI_API_VERSION || "2024-10-21";
+const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT; // e.g., "trailmix-gpt"
 
-// Initialize Azure OpenAI client
+if (!AZURE_ENDPOINT) throw new Error("Missing AZURE_OPENAI_ENDPOINT");
+if (!AZURE_KEY) throw new Error("Missing AZURE_OPENAI_API_KEY");
+if (!DEPLOYMENT) throw new Error("Missing AZURE_OPENAI_DEPLOYMENT");
+
 const client = new OpenAI({
-  apiKey: process.env.AZURE_OPENAI_API_KEY!,
-  baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments`,
-  defaultQuery: { "api-version": process.env.AZURE_OPENAI_API_VERSION || "2024-10-21" },
-  defaultHeaders: { "api-key": process.env.AZURE_OPENAI_API_KEY! },
+  apiKey: AZURE_KEY,
+  baseURL: `${AZURE_ENDPOINT}/openai/deployments/${DEPLOYMENT}`,
+  defaultQuery: { "api-version": AZURE_VERSION },
+  defaultHeaders: { "api-key": AZURE_KEY },
 });
 
-
-
+// ---- Types & helpers ----
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
 
-// Function to clean up markdown formatting for plain text display
 function cleanMarkdownFormatting(text: string): string {
   return text
-    .replace(/\*\*(.*?)\*\*/g, "$1") // **bold**
-    .replace(/\*(.*?)\*/g, "$1") // *italic*
-    .replace(/`(.*?)`/g, "$1") // inline code
-    .replace(/^#+\s*/gm, "") // headers
-    .replace(/^[-*]\s+/gm, "\n• ") // bullets
-    .replace(/([.!?])\s*\n•/g, "$1\n\n•") // newline before bullets
-    .replace(/\n{3,}/g, "\n\n") // reduce whitespace
-    .replace(/^\n+/, "") // leading newlines
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^[-*]\s+/gm, "\n• ")
+    .replace(/([.!?])\s*\n•/g, "$1\n\n•")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\n+/, "")
     .trim();
 }
 
-// Trail safety system prompt to guide AI responses
 const TRAIL_SAFETY_PROMPT = `You are TrailMix AI, a helpful trail safety assistant. You provide advice about:
 
 - Trail conditions and safety tips
@@ -52,25 +56,21 @@ When discussing hazards, mention these common trail hazards:
 
 Always prioritize safety and encourage users to check current conditions before hiking.`;
 
-// Core chat function (replaces Gemini)
+// ---- Chat ----
 export async function sendMessageToGemini(
   message: string,
   conversationHistory: ChatMessage[] = []
 ): Promise<string> {
   try {
-    // Check for API key
-    if (!process.env.AZURE_OPENAI_API_KEY) {
-      return "To enable AI chat, please add your Azure OpenAI API key to .env.local.";
-    }
-
-    // Build chat context
-    const history = conversationHistory.slice(-5).map((msg) => ({
-      role: msg.role,
-      content: msg.content,
+    const history = conversationHistory.slice(-5).map((m) => ({
+      role: m.role,
+      content: m.content,
     }));
 
     const completion = await client.chat.completions.create({
-      model: DEPLOYMENT,
+      // Azure ignores this when baseURL already includes /deployments/<name>,
+      // but keeping it for clarity is fine:
+      model: DEPLOYMENT!,
       temperature: 0.3,
       messages: [
         { role: "system", content: TRAIL_SAFETY_PROMPT },
@@ -85,9 +85,12 @@ export async function sendMessageToGemini(
 
     return cleanMarkdownFormatting(text);
   } catch (error: any) {
-    console.error("Error calling Azure OpenAI:", error);
+    console.error("Error calling Azure OpenAI:", {
+      status: error?.status,
+      data: error?.response?.data,
+      message: error?.message,
+    });
 
-    // Fallbacks for common queries
     const msg = message.toLowerCase();
     if (msg.includes("weather")) {
       return "I recommend checking current weather conditions before heading out. Always be prepared for sudden changes and pack appropriate gear.";
@@ -103,11 +106,11 @@ export async function sendMessageToGemini(
   }
 }
 
-// Fetch safety tips (replaces Gemini model call)
+// ---- Tips ----
 export async function getTrailSafetyTips(): Promise<string[]> {
   try {
     const completion = await client.chat.completions.create({
-      model: DEPLOYMENT,
+      model: DEPLOYMENT!,
       temperature: 0.4,
       messages: [
         {
@@ -122,13 +125,11 @@ export async function getTrailSafetyTips(): Promise<string[]> {
       completion.choices?.[0]?.message?.content || ""
     );
 
-    const tips = responseText
+    return responseText
       .split("\n")
       .filter((line) => line.trim().length > 0)
       .map((line) => line.replace(/^[-*•]\s*/, "").trim())
       .slice(0, 5);
-
-    return tips;
   } catch (error) {
     console.error("Error getting trail safety tips:", error);
     return [

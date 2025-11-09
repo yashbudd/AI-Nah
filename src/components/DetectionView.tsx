@@ -39,7 +39,7 @@ export default function DetectionView() {
       case 'debris': return '#D97706';   // orange
       case 'water': return '#3B82F6';    // blue
       case 'blockage': return '#EF4444'; // red
-      default: return '#10B981';         // green
+      default: return '#001f03';         // dark green
     }
   }
 
@@ -266,13 +266,17 @@ export default function DetectionView() {
     display: 'inline-block',
     width: '100%',
     maxWidth: 960,
+    borderRadius: 'var(--radius-md)',
+    overflow: 'hidden',
+    background: '#000',
   };
   const videoStyle: React.CSSProperties = {
     display: 'block',
     width: '100%',
     height: 'auto',
-    borderRadius: 8,
+    borderRadius: 'var(--radius-md)',
     transform: 'scaleX(-1)', // Mirror the camera feed horizontally
+    background: '#000',
   };
   const canvasStyle: React.CSSProperties = {
     position: 'absolute',
@@ -281,43 +285,167 @@ export default function DetectionView() {
     height: '100%',
     pointerEvents: 'none',
     zIndex: 1,
-    borderRadius: 8,
+    borderRadius: 'var(--radius-md)',
     transform: 'scaleX(-1)', // Mirror the overlay to match the video
   };
 
   return (
-    <div style={{ width: '100%', padding: 16, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, opacity: 0.8 }}>Threshold</span>
-          <input
-            type="range"
-            min={0.2}
-            max={0.9}
-            step={0.05}
-            value={threshold}
-            onChange={(e) => setThreshold(parseFloat(e.target.value))}
-          />
-          <span style={{ width: 36, textAlign: 'right' }}>{threshold.toFixed(2)}</span>
-        </label>
+    <div style={{ width: '100%', padding: '20px 16px', margin: '0 auto', background: 'var(--bg-white)', minHeight: 'calc(100vh - 180px)' }}>
+      {/* Controls Card */}
+      <div style={{
+        background: 'var(--bg-white)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '16px',
+        marginBottom: '16px',
+        boxShadow: 'var(--shadow-md)',
+        border: '1px solid var(--border-light)'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Threshold Control */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🎯</span>
+                <span>Detection Threshold</span>
+              </label>
+              <span style={{ 
+                fontSize: '14px', 
+                fontWeight: 700, 
+                color: 'var(--primary-dark)',
+                background: 'var(--bg-secondary)',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-sm)',
+                minWidth: '50px',
+                textAlign: 'center'
+              }}>
+                {(threshold * 100).toFixed(0)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0.2}
+              max={0.9}
+              step={0.05}
+              value={threshold}
+              onChange={(e) => setThreshold(parseFloat(e.target.value))}
+              className="detection-threshold-slider"
+              style={{
+                background: 'linear-gradient(to right, var(--primary-dark) 0%, var(--primary-dark) ' + ((threshold - 0.2) / 0.7 * 100) + '%, var(--border-light) ' + ((threshold - 0.2) / 0.7 * 100) + '%, var(--border-light) 100%)'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-light)' }}>
+              <span>Low (20%)</span>
+              <span>High (90%)</span>
+            </div>
+          </div>
 
-        <button
-          style={{ padding: '6px 12px', borderRadius: 6, background: '#000', color: '#fff' }}
-          onClick={() => setRunning((r) => !r)}
-          aria-pressed={running}
-        >
-          {running ? 'Pause' : 'Resume'}
-        </button>
+          {/* Action Buttons Row */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              onClick={() => setRunning((r) => !r)}
+              aria-pressed={running}
+              style={{
+                flex: 1,
+                padding: '12px 20px',
+                borderRadius: 'var(--radius-md)',
+                background: running 
+                  ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' 
+                  : 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-dark-light) 100%)',
+                color: 'var(--primary-white)',
+                fontWeight: 600,
+                fontSize: '14px',
+                boxShadow: running 
+                  ? '0 4px 12px rgba(239, 68, 68, 0.3)' 
+                  : '0 4px 12px rgba(0, 31, 3, 0.3)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all var(--transition-base)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <span>{running ? '⏸️' : '▶️'}</span>
+              <span>{running ? 'Pause Detection' : 'Start Detection'}</span>
+            </button>
+          </div>
 
-        <div style={{ marginLeft: 'auto', opacity: 0.7, fontSize: 14 }}>
-          {err ? <span style={{ color: '#dc2626' }}>{err}</span> : <>FPS: {fps} · tick {tick}</>}
+          {/* Status Row */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '10px 12px',
+            background: err ? '#FEE2E2' : 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-sm)',
+            border: err ? '1px solid #FECACA' : 'none'
+          }}>
+            {err ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#DC2626', fontSize: '13px', fontWeight: 500 }}>
+                <span>⚠️</span>
+                <span>{err}</span>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-medium)' }}>
+                  <span 
+                    className={running ? 'detection-status-indicator' : ''}
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: running ? 'var(--primary-dark)' : 'var(--text-light)'
+                    }}
+                  ></span>
+                  <span>{running ? 'Detecting' : 'Paused'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-light)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>⚡</span>
+                    <span>{fps} FPS</span>
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={wrapperStyle}>
-        <video ref={videoRef} style={videoStyle} playsInline muted autoPlay />
-        <canvas ref={canvasRef} style={canvasStyle} />
+      {/* Video Card */}
+      <div className="detection-video-card" style={{ background: 'var(--bg-white)' }}>
+        <div style={wrapperStyle}>
+          <video ref={videoRef} style={videoStyle} playsInline muted autoPlay />
+          <canvas ref={canvasRef} style={canvasStyle} />
+        </div>
+        {!running && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '14px',
+            fontWeight: 600,
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}>
+            Detection Paused
+          </div>
+        )}
       </div>
+
+      {/* Info Tip */}
+      <div className="detection-info-tip">
+        <div style={{ fontSize: '13px', color: 'var(--primary-dark)', fontWeight: 500 }}>
+          💡 Point your camera at trail hazards to automatically detect and report them
+        </div>
+      </div>
+
     </div>
   );
 }

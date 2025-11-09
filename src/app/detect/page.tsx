@@ -17,11 +17,8 @@ export default function DetectPage() {
   }
 
   return (
-    <div>
+    <div style={{ height: '100%', overflow: 'auto', background: 'var(--bg-white)' }}>
       <DetectionView />
-      <div className="tip" style={{ textAlign: 'center', marginTop: 16 }}>
-        Camera Detection - Report trail hazards you see
-      </div>
     </div>
   );
 }

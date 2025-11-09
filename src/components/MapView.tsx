@@ -6,6 +6,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useHazards } from "@/hooks/useHazards";
 import { HazardResponse } from "@/types/hazard-db";
 
+const ENV_EMERGENCY_SMS = process.env.NEXT_PUBLIC_EMERGENCY_SMS?.trim() ?? '';
+
 // Next.js environment variable
 mapboxgl.accessToken =
   process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
@@ -68,6 +70,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
   const [showEmergencyConfirm, setShowEmergencyConfirm] = useState(false);
   const [emergencyToast, setEmergencyToast] = useState<string | null>(null);
   const emergencyToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const emergencyNumberIsConfigured = !!ENV_EMERGENCY_SMS;
 
   // ---- helpers ----
   function hazardsToGeoJSON() {
@@ -155,12 +158,33 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
   }
 
   const triggerEmergencySimulation = () => {
+    if (!emergencyNumberIsConfigured) {
+      setShowEmergencyConfirm(false);
+      setEmergencyToast('No emergency SMS number configured. Set NEXT_PUBLIC_EMERGENCY_SMS in your .env.local file.');
+      if (emergencyToastTimeoutRef.current) {
+        clearTimeout(emergencyToastTimeoutRef.current);
+      }
+      emergencyToastTimeoutRef.current = setTimeout(() => setEmergencyToast(null), 6000);
+      return;
+    }
+
+    const trimmed = ENV_EMERGENCY_SMS;
     setShowEmergencyConfirm(false);
-    setEmergencyToast("Emergency alert sent to nearest response team (simulation)");
+    const messageBody = `TrailMix SOS: Need assistance near ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}.`;
+    setEmergencyToast(`Texting ${trimmed} (simulation)`);
     if (emergencyToastTimeoutRef.current) {
       clearTimeout(emergencyToastTimeoutRef.current);
     }
     emergencyToastTimeoutRef.current = setTimeout(() => setEmergencyToast(null), 5000);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const smsUrl = `sms:${encodeURIComponent(trimmed)}?body=${encodeURIComponent(messageBody)}`;
+        window.location.href = smsUrl;
+      } catch (err) {
+        console.warn('Unable to open SMS composer:', err);
+      }
+    }
   };
 
   // ---- map init ----
@@ -704,20 +728,40 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
             maxWidth: 260,
           }}
         >
-          <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 700 }}>Send Emergency Alert?</h3>
+          <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 700 }}>Text My Emergency Contact?</h3>
           <p style={{ fontSize: 13, color: "var(--text-medium)", margin: "0 0 12px 0" }}>
-            This will simulate dispatching the nearest response team using Azure services.
+            This simulation opens your SMS app to send a TrailMix alert. An Azure workflow can automate dispatch in production.
           </p>
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-md)',
+            border: '2px solid var(--border-light)',
+            background: 'var(--bg-secondary)',
+            marginBottom: 12,
+            fontSize: 14,
+            fontWeight: 600,
+            color: emergencyNumberIsConfigured ? 'var(--text-dark)' : '#DC2626',
+          }}>
+            {emergencyNumberIsConfigured ? `Configured number: ${ENV_EMERGENCY_SMS}` : 'No number configured'}
+          </div>
+          {!emergencyNumberIsConfigured && (
+            <p style={{ fontSize: 12, color: '#DC2626', margin: '0 0 12px 0' }}>
+              Set <code>NEXT_PUBLIC_EMERGENCY_SMS</code> in <code>.env.local</code> and rebuild.
+            </p>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={triggerEmergencySimulation}
               className="btn-primary"
-              style={{ flex: 1, padding: "8px 16px" }}
+              style={{ flex: 1, padding: "8px 16px", opacity: emergencyNumberIsConfigured ? 1 : 0.6 }}
+              disabled={!emergencyNumberIsConfigured}
             >
-              Confirm
+              Send Text
             </button>
             <button
-              onClick={() => setShowEmergencyConfirm(false)}
+              onClick={() => {
+                setShowEmergencyConfirm(false);
+              }}
               style={{
                 padding: "8px 16px",
                 background: "#6B7280",

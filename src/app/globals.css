@@ -1244,6 +1244,54 @@ button:disabled {
   padding: 0 8px;
 }
 
+.message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 0 8px;
+  gap: 8px;
+}
+
+.user-message .message-footer {
+  justify-content: flex-end;
+}
+
+.assistant-message .message-footer {
+  justify-content: space-between;
+}
+
+.tts-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+  opacity: 0.7;
+  min-height: auto;
+  min-width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tts-button:hover {
+  opacity: 1;
+  background: rgba(0, 31, 3, 0.1);
+  transform: scale(1.1);
+  box-shadow: none;
+}
+
+.tts-button:active {
+  transform: scale(0.95);
+}
+
+.tts-button::before {
+  display: none;
+}
+
 .typing-indicator {
   display: flex;
   gap: 4px;

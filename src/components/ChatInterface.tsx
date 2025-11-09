@@ -18,6 +18,8 @@ export default function ChatInterface() {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [playingMessageIndex, setPlayingMessageIndex] = useState<number | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,9 +40,77 @@ export default function ChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const playTextToSpeech = async (text: string, messageIndex: number) => {
+    try {
+      // Stop any currently playing audio
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+      }
+
+      setPlayingMessageIndex(messageIndex);
+
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate speech');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      setAudioElement(audio);
+
+      audio.onended = () => {
+        setPlayingMessageIndex(null);
+        setAudioElement(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setPlayingMessageIndex(null);
+        setAudioElement(null);
+        URL.revokeObjectURL(audioUrl);
+        console.error('Error playing audio');
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Error with text-to-speech:', error);
+      setPlayingMessageIndex(null);
+      setAudioElement(null);
+    }
+  };
+
+  const stopTextToSpeech = () => {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      setPlayingMessageIndex(null);
+      setAudioElement(null);
+    }
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cleanup audio on component unmount
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+      }
+    };
+  }, [audioElement]);
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -126,11 +196,26 @@ export default function ChatInterface() {
               <div className="message-text">
                 {cleanDisplayText(message.content)}
               </div>
-              <div className="message-time">
-                {message.timestamp.toLocaleTimeString([], { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
+              <div className="message-footer">
+                <div className="message-time">
+                  {message.timestamp.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+                {message.role === 'assistant' && (
+                  <button
+                    onClick={() => 
+                      playingMessageIndex === index 
+                        ? stopTextToSpeech() 
+                        : playTextToSpeech(message.content, index)
+                    }
+                    className="tts-button"
+                    title={playingMessageIndex === index ? 'Stop speech' : 'Play speech'}
+                  >
+                    {playingMessageIndex === index ? '⏸️' : '🔊'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

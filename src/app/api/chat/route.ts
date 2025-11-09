@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendMessageToGemini, ChatMessage } from '@/lib/gemini';
+import { sendMessageToGemini, ChatMessage } from '@/lib/azureClient';
 
 export async function POST(request: NextRequest) {
   try {

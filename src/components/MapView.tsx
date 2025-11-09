@@ -89,14 +89,15 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     end: { lng: number; lat: number },
     resolutionMeters = 8
   ): Promise<GeoJSON.Feature<GeoJSON.LineString>> {
-    const r = await fetch("/api/route", {
+    const r = await fetch("/api/routes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bbox, start, end, resolutionMeters }),
     });
     if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(txt || "route error");
+      const errorData = await r.json().catch(async () => ({ error: await r.text() || "route error" }));
+      const errorMessage = errorData.message || errorData.error || "Route calculation failed";
+      throw new Error(errorMessage);
     }
     return r.json();
   }
@@ -321,8 +322,21 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
             const route = await fetchRoute(bbox, startLLRef.current, endLLRef.current, 8);
             setRouteData(route);
             setRouting({ busy: false });
+            
+            // Fit map to show the entire route
+            if (route.geometry?.coordinates && route.geometry.coordinates.length > 0) {
+              const coords = route.geometry.coordinates as [number, number][];
+              const lngs = coords.map(c => c[0]);
+              const lats = coords.map(c => c[1]);
+              const bounds = new mapboxgl.LngLatBounds(
+                [Math.min(...lngs), Math.min(...lats)],
+                [Math.max(...lngs), Math.max(...lats)]
+              );
+              m.fitBounds(bounds, { padding: 50, duration: 1000 });
+            }
           } catch (err: any) {
-            setRouting({ busy: false, error: err?.message ?? "Routing failed" });
+            console.error('Route calculation error:', err);
+            setRouting({ busy: false, error: err?.message ?? "Routing failed. Make sure start and end points are within the map view." });
             // keep markers so the user can try again
           }
           return;

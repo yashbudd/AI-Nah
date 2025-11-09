@@ -1,4 +1,4 @@
-## 🥾 TrailMix — AI-powered Trail Safety & Adaptive Routing
+## 🥾 TrailMix - AI-powered Trail Safety & Adaptive Routing
 
 TrailMix is an AI-driven trail safety platform that combines on-device computer vision for
 reliable hazard detection, hazard-aware adaptive routing, a conversational trail assistant,

@@ -894,7 +894,7 @@ button:disabled {
 }
 
 .home-features {
-  padding: 30px 20px;
+  padding: 30px 20px 24px 20px;
   background: var(--bg-white);
 }
 
@@ -903,27 +903,32 @@ button:disabled {
   font-weight: 700;
   color: var(--primary-dark);
   text-align: center;
-  margin: 0 0 24px 0;
+  margin: 0 0 20px 0;
 }
 
 .home-features-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  max-width: 600px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  max-width: 720px;
   margin: 0 auto;
+  align-items: stretch;
 }
 
 .home-feature-card {
   background: white;
   border: 2px solid var(--border-light);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px 18px;
   text-decoration: none;
   color: inherit;
   transition: all var(--transition-base);
   box-shadow: var(--shadow-sm);
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 220px;
   position: relative;
   overflow: hidden;
 }
@@ -950,17 +955,17 @@ button:disabled {
 }
 
 .feature-icon-large {
-  font-size: 48px;
-  margin-bottom: 12px;
+  font-size: 44px;
+  margin-bottom: 6px;
   display: block;
   text-align: center;
 }
 
 .feature-card-title {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--primary-dark);
-  margin: 0 0 8px 0;
+  margin: 0;
   text-align: center;
 }
 
@@ -968,12 +973,14 @@ button:disabled {
   font-size: 0.9rem;
   color: var(--text-medium);
   line-height: 1.5;
-  margin: 0 0 12px 0;
+  margin: 0;
   text-align: center;
 }
 
 .feature-card-link {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   text-align: center;
   font-size: 0.85rem;
   font-weight: 600;

@@ -12,7 +12,7 @@ mapboxgl.accessToken =
   "pk.eyJ1IjoidHJhaWxtaXgiLCJhIjoiY2x6MjN4eWRmMHExZzJrcGxqbm5ybGt4OCJ9.demo_token_replace_with_real_token";
 
 export interface MapViewRef {
-  addHazard: (hazard: { type: "debris" | "water" | "blocked"; lat: number; lng: number }) => void;
+  addHazard: (hazard: { type: "debris" | "water" | "blocked" | "branch" | "other"; lat: number; lng: number }) => void;
 }
 
 const ROUTE_SOURCE_ID = "hazard-route";
@@ -29,11 +29,11 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
 
   const [pos, setPos] = useState<{ lng: number; lat: number }>({ lng: -85.047884, lat: 33.9869289 }); // Hardcoded to trail start
   
-  // Use MongoDB hazards hook
+  // Use MongoDB hazards hook - fetch hazards around trail coordinates
   const { hazards, loading, error, createHazard, fetchHazards } = useHazards({
     lat: 33.9869289,
     lng: -85.047884,
-    radius: 10,
+    radius: 20, // 20km radius should catch AI hazards around trail
     autoFetch: true
   });
 
@@ -61,7 +61,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
   // Manual hazard creation state
   const [showHazardForm, setShowHazardForm] = useState(false);
   const [newHazard, setNewHazard] = useState({
-    type: 'debris' as 'debris' | 'water' | 'blocked',
+    type: 'debris' as 'debris' | 'water' | 'blocked' | 'branch' | 'other',
     description: ''
   });
 
@@ -211,7 +211,13 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         type: "symbol",
         source: HAZARDS_SOURCE_ID,
         layout: {
-          "text-field": ["match", ["get", "type"], "debris", "🪨", "water", "💧", "blocked", "🚫", "⚠️"],
+          "text-field": ["match", ["get", "type"], 
+            "debris", "🪨", 
+            "water", "💧", 
+            "blocked", "🚫", 
+            "branch", "🌿",
+            "other", "⚠️",
+            "⚠️"], // default fallback
           "text-size": 18,
           "text-anchor": "center",
           "visibility": "visible" // Ensure hazard labels are always visible
@@ -433,7 +439,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     alert("Clear hazards functionality - would delete from database");
   }
 
-  async function addHazard(hazard: { type: "debris" | "water" | "blocked"; lat: number; lng: number }) {
+  async function addHazard(hazard: { type: "debris" | "water" | "blocked" | "branch" | "other"; lat: number; lng: number }) {
     // Use MongoDB to create hazard
     const newHazard = await createHazard({
       longitude: hazard.lng,
@@ -550,7 +556,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
               value={newHazard.type}
               onChange={(e) => setNewHazard(prev => ({ 
                 ...prev, 
-                type: e.target.value as 'debris' | 'water' | 'blocked' 
+                type: e.target.value as 'debris' | 'water' | 'blocked' | 'branch' | 'other'
               }))}
               style={{
                 width: "100%",
@@ -571,9 +577,11 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
                 e.target.style.boxShadow = "none";
               }}
             >
-              <option value="debris">🌳 Debris</option>
+              <option value="debris">🪨 Debris</option>
               <option value="water">💧 Water</option>
-              <option value="blocked">🚧 Blocked</option>
+              <option value="blocked">🚫 Blocked</option>
+              <option value="branch">🌿 Branch</option>
+              <option value="other">⚠️ Other</option>
             </select>
           </div>
 

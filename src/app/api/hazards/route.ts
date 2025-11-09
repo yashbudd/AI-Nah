@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     let query: any = {}
     
     // Filter by type if provided
-    if (type && ['debris', 'water', 'blocked'].includes(type)) {
+    if (type && ['debris', 'water', 'blocked', 'branch', 'other'].includes(type)) {
       query.type = type
     }
     
@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Validate type
-    if (!['debris', 'water', 'blocked'].includes(body.type)) {
+    if (!['debris', 'water', 'blocked', 'branch', 'other'].includes(body.type)) {
       return NextResponse.json(
-        { error: 'Invalid hazard type. Must be: debris, water, or blocked' },
+        { error: 'Invalid hazard type. Must be: debris, water, blocked, branch, or other' },
         { status: 400 }
       )
     }

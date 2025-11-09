@@ -8,6 +8,7 @@ const HAZARD = {
   debris:   { radius: 10, weight: 4 },
   blocked:  { radius: 25, weight: 20 }, // Note: database uses 'blocked', not 'blockage'
   blockage: { radius: 25, weight: 20 }, // Alias for compatibility
+  branch:   { radius: 8,  weight: 3 },  // Branches are lighter debris
   water:    { radius: 30, weight: 30 },
   other:    { radius: 8,  weight: 2 },
 } as const;
@@ -20,9 +21,9 @@ type LL = { lat: number; lng: number };
 type BBox = [minLng: number, minLat: number, maxLng: number, maxLat: number];
 
 type HazardDoc = {
-  type: 'debris'|'blocked'|'blockage'|'water'|'other';
-  position: LL;
-  confidence?: number;
+  type: 'debris'|'blocked'|'water'|'branch'|'other';
+  position: { lat: number; lng: number };
+  confidence: number;
 };
 
 function clamp(v: number, a: number, b: number) { return Math.max(a, Math.min(b, v)); }
@@ -282,7 +283,7 @@ export async function POST(req: NextRequest) {
       .find({
         longitude: { $gte: expandedBbox.minLng, $lte: expandedBbox.maxLng },
         latitude: { $gte: expandedBbox.minLat, $lte: expandedBbox.maxLat },
-        type: { $in: ['debris', 'water', 'blocked'] }
+        type: { $in: ['debris', 'water', 'blocked', 'branch', 'other'] }
       })
       .limit(5000)
       .toArray();

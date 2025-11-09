@@ -9,14 +9,44 @@ export type HazardIn = {
 
 export async function postHazards(hazards: HazardIn[] | HazardIn) {
   try {
-    await fetch('/api/hazards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(hazards),
-      keepalive: true,
-    });
-  } catch {
-    // ignore network errors in demo
+    const hazardArray = Array.isArray(hazards) ? hazards : [hazards];
+    
+    // Hardcoded trail coordinates for demo purposes
+    const baseLat = 33.9869289;
+    const baseLng = -85.047884;
+    
+    // Convert each hazard for database storage
+    for (const hazard of hazardArray) {
+      // Generate random coordinates very close to the hardcoded trail location
+      // Spread them out in a ~30m radius (much tighter clustering)
+      const randomOffsetLat = (Math.random() - 0.5) * 0.0003; // ~16m range
+      const randomOffsetLng = (Math.random() - 0.5) * 0.0003; // ~16m range
+      
+      const demoLat = baseLat + randomOffsetLat;
+      const demoLng = baseLng + randomOffsetLng;
+
+      // Map 'blockage' AI detection type to 'blocked' database type
+      const dbType = hazard.type === 'blockage' ? 'blocked' : hazard.type;
+
+      const dbHazard = {
+        longitude: demoLng,
+        latitude: demoLat,
+        type: dbType,
+        confidence: hazard.confidence,
+        source: 'ai' as const,
+        description: `AI detected ${hazard.type} with ${Math.round(hazard.confidence * 100)}% confidence`
+      };
+
+      await fetch('/api/hazards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbHazard),
+        keepalive: true,
+      });
+    }
+  } catch (error) {
+    console.error('Error posting hazards:', error);
+    // ignore network errors in demo but log for debugging
   }
 }
 

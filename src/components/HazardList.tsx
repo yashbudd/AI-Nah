@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 interface DemoModeProps {
-  onAddHazard: (hazard: {type: "debris"|"water"|"blocked"; lat: number; lng: number}) => void;
+  onAddHazard: (hazard: {type: "debris"|"water"|"blocked"|"branch"|"other"; lat: number; lng: number}) => void;
 }
 
 export default function HazardList({ onAddHazard }: DemoModeProps) {

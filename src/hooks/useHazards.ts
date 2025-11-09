@@ -5,7 +5,7 @@ interface UseHazardsOptions {
   lat?: number
   lng?: number
   radius?: number
-  type?: 'debris' | 'water' | 'blocked'
+  type?: 'debris' | 'water' | 'blocked' | 'branch' | 'other'
   autoFetch?: boolean
 }
 
@@ -35,12 +35,16 @@ export function useHazards(options: UseHazardsOptions = {}): UseHazardsReturn {
       if (radius) params.append('radius', radius.toString())
       if (type) params.append('type', type)
       
-      const response = await fetch(`/api/hazards?${params}`)
+      const url = `/api/hazards?${params}`
+      console.log('Fetching hazards from:', url)
+      
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error('Failed to fetch hazards')
       }
       
       const data = await response.json()
+      console.log('Received hazards data:', data)
       setHazards(data.hazards || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')

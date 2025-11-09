@@ -27,9 +27,9 @@ export default function Header() {
         };
       case '/chat':
         return {
-          icon: '💬',
-          title: 'AI Assistant',
-          subtitle: 'Trail safety advisor',
+          icon: '🥜',
+          title: 'Peanut',
+          subtitle: 'Trail safety assistant',
           showStatus: false,
           showLogo: false,
         };

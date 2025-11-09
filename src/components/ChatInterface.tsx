@@ -12,7 +12,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m TrailMix AI, your trail safety assistant. I can help with hiking advice, safety tips, weather considerations, and hazard identification. What would you like to know?',
+      content: 'Hi! I\'m Peanut, your trail safety assistant. I can help with hiking advice, safety tips, weather considerations, and hazard identification. What would you like to know?',
       timestamp: new Date()
     }
   ]);

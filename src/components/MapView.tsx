@@ -39,9 +39,71 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
     autoFetch: true
   });
 
+  const [hazardRisks, setHazardRisks] = useState<Record<string, number>>({});
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState<string | null>(null);
+
   // Debug hazards changes
   useEffect(() => {
     console.log('Hazards changed:', hazards.length, hazards.map(h => ({ type: h.type, lat: h.latitude, lng: h.longitude })));
+  }, [hazards]);
+
+  useEffect(() => {
+    if (!hazards.length) {
+      setHazardRisks({});
+      setRiskLoading(false);
+      setRiskError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRiskLoading(true);
+    setRiskError(null);
+
+    const payload = {
+      hazards: hazards.map((h) => ({
+        id: h.id,
+        latitude: h.latitude,
+        longitude: h.longitude,
+        confidence: h.confidence,
+        type: h.type,
+      })),
+    };
+
+    fetch('/api/hazard-risk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to compute risk');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data || !Array.isArray(data.risks)) return;
+        const map: Record<string, number> = {};
+        for (const risk of data.risks) {
+          if (risk?.id) map[risk.id] = risk.riskScore ?? 0;
+        }
+        setHazardRisks(map);
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        console.warn('Failed to fetch hazard risk', err);
+        setRiskError(err?.message ?? 'Failed to fetch hazard risk');
+        setHazardRisks({});
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setRiskLoading(false);
+        }
+      });
+
+    return () => controller.abort();
   }, [hazards]);
 
   // Periodic refresh to ensure hazards stay current - reduce frequency to avoid UI flicker
@@ -84,7 +146,8 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
           type: h.type, 
           confidence: h.confidence,
           timestamp: h.timestamp,
-          source: h.source
+          source: h.source,
+          riskScore: h.id ? hazardRisks[h.id] : undefined,
         },
       })),
     };
@@ -223,19 +286,38 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         type: "circle",
         source: HAZARDS_SOURCE_ID,
         paint: {
-          "circle-radius": 10,
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "debris",
-            "#D97706",
-            "water",
-            "#3B82F6",
-            "blocked",
-            "#EF4444",
-            "#001f03",
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["coalesce", ["get", "riskScore"], 0],
+            0, 8,
+            5, 12,
+            10, 16
           ],
-          "circle-stroke-width": 3,
+          "circle-color": [
+            "case",
+            ["has", "riskScore"],
+            [
+              "interpolate",
+              ["linear"],
+              ["coalesce", ["get", "riskScore"], 0],
+              0, "#34d399",
+              4, "#facc15",
+              7, "#f97316",
+              10, "#dc2626"
+            ],
+            [
+              "match",
+              ["get", "type"],
+              "debris", "#D97706",
+              "water", "#3B82F6",
+              "blocked", "#EF4444",
+              "branch", "#10B981",
+              "other", "#A855F7",
+              "#001f03"
+            ]
+          ],
+          "circle-stroke-width": 2,
           "circle-stroke-color": "#ffffff",
         },
         layout: {
@@ -299,6 +381,9 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
         if (features.length > 0) {
           const hazard = features[0];
           const { type, confidence, timestamp, source, id } = hazard.properties || {};
+          const riskScore = typeof hazard.properties?.riskScore === 'number'
+            ? hazard.properties.riskScore
+            : (id && hazardRisks[id]) ?? undefined;
           
           // Find full hazard data
           const fullHazard = hazards.find(h => h.id === id);
@@ -309,17 +394,22 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
             .setHTML(`
               <div style="padding: 8px; min-width: 200px;">
                 <div style="font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                  ${type === 'debris' ? '🪨' : type === 'water' ? '💧' : '🚫'} 
-                  ${type.charAt(0).toUpperCase() + type.slice(1)} Hazard
+                  ${type === 'debris' ? '🪨' : type === 'water' ? '💧' : type === 'blocked' ? '🚫' : type === 'branch' ? '🌿' : '⚠️'} 
+                  ${type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Hazard'}
                 </div>
+                ${riskScore !== undefined ? `
                 <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
-                  <strong>Confidence:</strong> ${Math.round(confidence * 100)}%
+                  <strong>Risk Score:</strong> ${riskScore.toFixed(1)} / 10
+                </div>
+                ` : ''}
+                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                  <strong>Confidence:</strong> ${Math.round((confidence ?? 0) * 100)}%
                 </div>
                 <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
                   <strong>Source:</strong> ${source}
                 </div>
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                  <strong>Reported:</strong> ${new Date(timestamp).toLocaleDateString()}
+                  <strong>Reported:</strong> ${timestamp ? new Date(timestamp).toLocaleDateString() : 'unknown'}
                 </div>
                 ${fullHazard?.description ? `
                   <div style="font-size: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px;">
@@ -456,7 +546,7 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
 
     // Add delay to ensure map is ready
     setTimeout(updateHazards, 100);
-  }, [hazards]);
+  }, [hazards, hazardRisks]);
 
   // actions
   function centerOnUser() {
@@ -781,6 +871,18 @@ const MapView = forwardRef<MapViewRef>((_, ref) => {
       {hazards.length > 0 && (
         <div className="map-status-badge info" style={{ bottom: 80, left: 10 }}>
           📍 {hazards.length} {hazards.length === 1 ? 'Hazard' : 'Hazards'}
+        </div>
+      )}
+
+      {riskLoading && (
+        <div className="map-status-badge info" style={{ bottom: 120, left: 10 }}>
+          🔄 Calculating risk…
+        </div>
+      )}
+
+      {riskError && (
+        <div className="map-status-badge error" style={{ bottom: riskLoading ? 150 : 120, left: 10 }}>
+          ⚠️ {riskError}
         </div>
       )}
 

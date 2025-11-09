@@ -35,13 +35,13 @@ You may also use: www.tmix.tech
 - `/` — Landing / overview ✨
 - `/map` — Map interface with hazards, two-click routing and manual hazard reporting 🧭
 - `/detect` — Camera / detection UI (runs model in a Worker) 📷
-- `/chat` — AI chat assistant backed by Gemini with voice playback 💬🔊
+- `/chat` — AI chat assistant backed by Azure and OpenAI with voice playback 💬🔊
 
 ## 🔧 Architecture & Key Implementation Notes
 
 - 📡 On-device detection: `src/ml/detector.ts` spawns `detector.worker.ts` which loads `@tensorflow-models/coco-ssd`
   into a WebGL backend for image-based detections in the browser.
-- 🤖 AI chat: `src/lib/gemini.ts` wraps `@google/genai` to produce trail-safety responses. Add a Gemini API key
+- 🤖 AI chat: `src/lib/azureClient.ts` wraps OpenAI gpt-4o-mini to produce trail-safety responses. Add an Azure API key
   to enable live chat.
 - � Text-to-speech: `src/app/api/tts/route.ts` uses ElevenLabs API to convert AI responses to natural speech.
   Users can click the speaker button next to assistant messages to hear them spoken aloud.

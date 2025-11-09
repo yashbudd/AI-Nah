@@ -66,7 +66,7 @@ You may also use: www.tmix.tech
 - React (client-side UI components)
 - Mapbox GL JS for interactive maps
 - TensorFlow.js + coco-ssd in a Web Worker for browser-based detection
-- Azure and OpenAI for Gemini-powered chat (server / serverless API)
+- Azure OpenAI-powered chat (server / serverless API)
 - @elevenlabs/elevenlabs-js for AI-powered text-to-speech
 - MongoDB for hazards and persistence
 
@@ -79,7 +79,7 @@ You may also use: www.tmix.tech
   - `src/app/api/hazards/route.ts` — hazards CRUD
 - `src/components/` — UI components (MapView, ChatInterface, etc.)
 - `src/ml/` — client detector and worker (`detector.ts`, `detector.worker.ts`)
-- `src/lib/` — helpers (Gemini wrapper, Mongo client, routing helpers)
+- `src/lib/` — helpers (Azure wrapper, Mongo client, routing helpers)
 
 ## 🧪 Developer notes & tips
 
@@ -165,7 +165,7 @@ Why TrailMix
 - Integrates ML-detected and user-reported hazards  
 
 ### 📷 Live Hazard Detection
-- On-device TensorFlow + Gemini-powered contextual classification  
+- On-device TensorFlow + OpenAI-powered contextual classification  
 - Detects 3 key hazard types: blockage, debris, water  
 - Stores hazards in MongoDB for community syncing  
 
@@ -175,7 +175,7 @@ Why TrailMix
 - Designed for low-signal field environments  
 
 ### 💬 Interactive Chatbot
-- Uses hazard database + Gemini for safety insights  
+- Uses hazard database + Azure for safety insights  
 - Provides real-time Q&A for trail conditions  
 - **Text-to-speech playback** using ElevenLabs AI voices  
 - Click speaker button (🔊) next to responses to hear them spoken aloud  

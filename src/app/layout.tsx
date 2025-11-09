@@ -1,5 +1,6 @@
 import './globals.css'
 import BottomNav from '@/components/BottomNav'
+import Header from '@/components/Header'
 
 export default function RootLayout({
   children,
@@ -14,9 +15,7 @@ export default function RootLayout({
             TrailMix Mobile Preview
           </div>
           <div className="mobile-content">
-            <div className="trailmix-header">
-              <h1>TrailMix</h1>
-            </div>
+            <Header />
             {children}
           </div>
           <BottomNav />
